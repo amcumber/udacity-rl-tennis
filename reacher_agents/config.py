@@ -1,0 +1,19 @@
+ENV_TYPE = 'unity'        # enum ('unity', 'gym') = choose which environment to run
+CLOUD = True              # True if running in Udacity venv
+BUFFER_SIZE = int(1e6)    # Replay buffer size
+BATCH_SIZE = 16           # minibatch size
+N_EPISODES = 1000         # max number of episodes to run
+MAX_T = 1000              # Max time steps within an episode
+N_WORKERS = 20            # number of workers to run in environment
+MAX_WORKERS = 10          # number of workers to learn from an episode, ignored if N_WORKERS < MAX_WORKERS
+LEARN_F = 20              # Learning Frequency within epiodes
+GAMMA = 0.99              # discount factor
+TAU = 1e-3                # soft update target parameter
+LR_ACTOR = 1e-4           # learning rate for the actor
+LR_CRITIC = 1e-4          # learning rate for the critic
+WEIGHT_DECAY = 0.         #0.0001 - L2 weight decay parameter
+WINDOW_LEN = 100          # window length for averaging
+ACTOR_UNITS = (256, 128)  # Actor Hidden architecture s -> h1 -> ... -> hn -> a
+CRITIC_UNITS = (256, 128) # Critic s -> h1+a -> ... -> hn -> 1
+ADD_NOISE = False         # Add OU noise to the agent's action
+SAVE_ALL = True           # Save meta data from trainer as a pickle file`
