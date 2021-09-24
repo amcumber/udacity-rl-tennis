@@ -1,6 +1,11 @@
 [environment]
+ROOT_NAME = 'unity'       # File root name
+ENV_FILE = 'envs/Reacher_Windows_x86_64-twenty-agents/Reacher.exe'
 ENV_TYPE = 'tennis'       # enum ('unity', 'gym') = choose which environment to run
 CLOUD = true              # True if running in Udacity venv
+STATE_SIZE = 24           # State size for given environment
+ACTION_SIZE = 2           # Action size for given environment
+UPPER_BOUND = 1.0         # upper bound of action space
 
 [trainer]
 BATCH_SIZE = 16           # minibatch size
@@ -10,6 +15,7 @@ WINDOW_LEN = 100          # window length for averaging
 SAVE_ALL = true           # Save meta data from trainer as a pickle file`
 
 [agent]
+N_AGENTS = 2
 BUFFER_SIZE = 1000000     # Replay buffer size
 LEARN_F = 20              # Learning Frequency within episodes
 GAMMA = 0.99              # discount factor
@@ -17,6 +23,6 @@ TAU = 1e-3                # soft update target parameter
 LR_ACTOR = 1e-4           # learning rate for the actor
 LR_CRITIC = 1e-4          # learning rate for the critic
 WEIGHT_DECAY = 0.0        #0.0001 - L2 weight decay parameter
-ACTOR_UNITS = [256, 128]  # Actor Hidden architecture s -> h1 -> ... -> hn -> a
-CRITIC_UNITS = [256, 128] # Critic s -> h1+a -> ... -> hn -> 1
+ACTOR_HIDDEN = [64, 64]  # Actor Hidden architecture s -> h1 -> ... -> hn -> a
+CRITIC_HIDDEN = [64, 64] # Critic s -> h1+a -> ... -> hn -> 1
 ADD_NOISE = false         # Add OU noise to the agent's action
