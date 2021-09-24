@@ -26,9 +26,11 @@ class Trainer(ABC):
 
 
 class TennisTrainer(Trainer):
+    SAVE_EVERY = 10
+
     def __init__(
         self,
-        agents: tuple[Agent, Agent],
+        agents: Tuple[Agent, Agent],
         env: EnvironmentMgr,
         n_episodes: int,
         window_len: int,
@@ -69,14 +71,11 @@ class TennisTrainer(Trainer):
         self.agents = agents
         self.env = env
         self.n_episodes = n_episodes
-
         self.solved = solved
         self.window_len = window_len
-
         self.scores_ = None
         self.save_root = save_root
-
-        self.SAVE_EVERY = 10
+        self.max_t = max_t
 
     def _report_score(self, i_episode, scores_window, scores, end="") -> None:
         """
