@@ -25,21 +25,19 @@ class Trainer(ABC):
         pass
 
 
-class MultiAgentTrainer(Trainer):
+class TennisTrainer(Trainer):
     def __init__(
         self,
-        agent: Agent,
+        agents: tuple[Agent, Agent],
         env: EnvironmentMgr,
         n_episodes: int,
-        max_t: int,
         window_len: int,
         solved: float,
-        n_workers: int,
-        max_workers: int,
         save_root: str = "checkpoint",
+        max_t: int = 2000,
     ):
         """
-        Multi Agent Trainer - Repurposed from DQNTrainer from Project 1.
+        Tennis - Repurposed from Continuous Control Submission
 
         Parameters
         ----------
@@ -50,51 +48,37 @@ class MultiAgentTrainer(Trainer):
             UnityEnvironment
             - DO NOT CLOSE in v0.4.0 - this will cause you to be locked
             out of your environment... NOTE TO UDACITY STAFF - fix this issue
-            by upgrading UnityEnvironemnt requirements. See
+            by upgrading UnityEnvironment requirements. See
             https://github.com/Unity-Technologies/ml-agents/issues/1167
         n_episodes: int
             maximum number of training episodes
-        max_t: int
-            maximum number of timesteps per episode
         window_len : int (100)
             update terminal with information for every specified iteration,
         solved : float
             score to be considered solved
-        workers: int (1)
-            number of workers (1, 20)
-        max_sample: int (10)
-            max number of workers to sample for multi agent training
         save_root: str
             file to save network weights
+        max_t : int (2000)
+            timeout for an episode
 
-        CITATION: the alogrithm for implemeting the learn_every // update_every
+        CITATION: the algorithm for implementing the learn_every // update_every
                   was derived from recommendations for the continuous control
                   project as well as reviewing recommendations on the Mentor
-                  help forums - Udacity's Deep Reinforement Learning Course
+                  help forums - Udacity's Deep Reinforcement Learning Course
         """
-        self.agent = agent
+        self.agents = agents
         self.env = env
         self.n_episodes = n_episodes
-        self.max_t = max_t
 
         self.solved = solved
         self.window_len = window_len
 
         self.scores_ = None
-        self.n_workers = n_workers
-        self.max_workers = max_workers
         self.save_root = save_root
 
         self.SAVE_EVERY = 10
 
-    def _report_score(
-        self,
-        i_episode,
-        scores_window,
-        scores,
-        end="",
-        # n=10,
-    ) -> None:
+    def _report_score(self, i_episode, scores_window, scores, end="") -> None:
         """
         Report the score
         Parameters
@@ -144,7 +128,7 @@ class MultiAgentTrainer(Trainer):
             rng = keep_awake(rng)
         for i_episode in rng:
             (scores_episode, scores_window, scores) = self._run_episode(
-                scores_episode, scores_window, self.max_t
+                scores_episode, scores_window
             )
             self.scores_ = scores_episode
             self._report_score(i_episode, scores_window, scores)
@@ -158,16 +142,17 @@ class MultiAgentTrainer(Trainer):
         return scores_episode
 
     def _run_episode(
-        self, scores_episode, scores_window, max_t, render=False
+        self, scores_episode, scores_window, render=False
     ) -> Tuple[list, deque, float]:
         """Run an episode of the training sequence"""
         states = self.env.reset()
-        self.agent.reset()
+        for agent in self.agents:
+            agent.reset()
         scores = np.zeros(self.n_workers)
-        for _ in range(max_t):
+        for _ in range(self.max_t):
             if render:
                 self.env.render()
-            actions = self.agent.act(states)
+            actions = [agent.act(states) for agent in self.agents]
             next_states, rewards, dones, _ = self.env.step(actions)
             self._step_agents(states, actions, rewards, next_states, dones)
             states = next_states
@@ -183,14 +168,13 @@ class MultiAgentTrainer(Trainer):
         """
         Step Agents depending on number of workers
 
-        CITATION: the alogrithm for implemeting the learn_every // update_every
+        CITATION: the algorithm for implementing the learn_every // update_every
                   was derived from recommendations for the continuous control
                   project as well as reviewing recommendations on the Mentor
-                  help forums - Udacity's Deep Reinforement Learning Course
+                  help forums - Udacity's Deep Reinforcement Learning Course
         """
-        n = np.min([self.max_workers, self.n_workers])
-        for idx in range(n):
-            self.agent.step(
+        for idx in range(self.n_agents):
+            self.agent[idx].step(
                 states[idx],
                 actions[idx],
                 rewards[idx],
@@ -198,13 +182,13 @@ class MultiAgentTrainer(Trainer):
                 dones[idx],
             )
 
-    def eval(self, n_episodes=3, t_max=1000, render=False):
+    def eval(self, n_episodes=3, render=False):
         ## scores_window
         scores_episode = []
         scores_window = deque(maxlen=self.window_len)
         for i in range(n_episodes):
             (scores_episode, scores_window) = self._run_episode(
-                scores_episode, scores_window, t_max, render=render
+                scores_episode, scores_window, render=render
             )
             self.scores_ = scores_episode
             print(f"\rEpisode {i+1}\tFinal Score: {np.mean(scores_episode):.2f}", end="")
@@ -216,17 +200,8 @@ class MultiAgentTrainer(Trainer):
         """
         if file is None:
             raise ValueError("File must be specified")
-        data = {
-            "n_episodes": self.n_episodes,
-            "max_t": self.max_t,
-            "window_len": self.window_len,
-            "solved": self.solved,
-            "n_workers": self.n_workers,
-            "max_workers": self.max_workers,
-            "save_root": self.save_root,
-        }
         with Path(file).open("w") as fh:
-            toml.dump(data, fh)
+            toml.dump(self.__dict__, fh)
 
     def save_scores(self, file: str) -> None:
         scores = self.scores_
@@ -241,51 +216,3 @@ class MultiAgentTrainer(Trainer):
         with Path(file).open("rb") as fh:
             scores = pickle.load(fh)
         return scores
-
-
-class SingleAgentTrainer(MultiAgentTrainer):
-    def __init__(
-        self,
-        agent: Agent,
-        env: EnvironmentMgr,
-        n_episodes: int = 3000,
-        max_t: int = 500,
-        window_len: int = 100,
-        solved: float = 30.0,
-        max_workers: int = None,
-        save_root: str = "checkpoint",
-        n_workers: int = None,
-    ):
-        """
-        Initialize a single agent trainer. for use with OpenAI Gym.
-        Maintains the same API as MultiAgentTrainer but n_workers and and
-        max_workers are ignored
-        """
-        super().__init__(
-            agent=agent,
-            env=env,
-            n_episodes=n_episodes,
-            max_t=max_t,
-            window_len=window_len,
-            solved=solved,
-            max_workers=None,
-            save_root=save_root,
-            n_workers=1,
-        )
-
-    def _step_agents(self, states, actions, rewards, next_states, dones):
-        """
-        Step Agents depending on number of workers
-
-        CITATION: the alogrithm for implemeting the learn_every // update_every
-                  was derived from recommendations for the continuous control
-                  project as well as reviewing recommendations on the Mentor
-                  help forums - Udacity's Deep Reinforement Learning Course
-        """
-        self.agent.step(
-            states,
-            actions,
-            rewards,
-            next_states,
-            dones,
-        )

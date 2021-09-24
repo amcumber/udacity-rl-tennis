@@ -25,7 +25,6 @@ from .replay_buffers import ReplayBuffer
 
 class DDPGAgent(Agent):
     """Interacts with and learns from the environment."""
-
     def __init__(
         self,
         state_size: int,
@@ -44,11 +43,11 @@ class DDPGAgent(Agent):
         actor_hidden: Tuple[int] = (256, 128),
         critic: nn.Module = DDPGCritic,
         critic_hidden: Tuple[int] = (256, 128),
-        noise: Noise = OUNoise,
         upper_bound: int = 1,
-        add_noise = True,
+        noise: Noise = OUNoise,
+        add_noise: bool = True,
     ):
-        """Initialize an Agent object.
+        """Initialize a DDPG Agent object.
 
         Parameters
         ----------
@@ -56,56 +55,58 @@ class DDPGAgent(Agent):
             dimension of each state
         action_size : int
             dimension of each action
-        random_seed : int
-            random seed
-
-        Optional Parameters
-        -------------------
-        buffer_size : int (int(1e6))
+        buffer_size : int
             replay buffer size
-        batch_size : int (128)
+        batch_size : int
             minibatch size
-        gamma : float (0.99)
+        gamma : float
             discount factor
-        tau : float (1e-3)
+        tau : float
             for soft update of target parameters
         lr_actor : float (1e-4)
             learning rate of the actor
         lr_critic : float (3e-4)
             learning rate of the critic
-        target_update_f : int (10)
-            update target networks at specified iteration
         learn_f : int (2)
             update local networks at specified iteration
         weight_decay : float (0.0001)
             L2 weight decay
+
+        Optional Parameters
+        -------------------
+        random_seed : int (42)
+            random seed
         actor : torch.nn.Module (DDPGActor)
             Actor Network to use for DDPG
+        actor_hidden : tuple[int, ...] (256,128)
+            Actor hidden architecture
         critic : torch.nn.Module (DDPGCritic)
             Critic Network to use for DDPG
+        critic_hidden : tuple[int, ...] (256,128)
+            Actor hidden architecture
         noise : Noise (OUNoise)
             Noise Model to use for normalizing the A/C Network
         upper_bound : int (1)
             bounding box for action upper_bound is set to value and lower_bound
             is set to value
+        noise : Noise (OUNoise)
+            noise model
+        add_noise : bool (True)
+            add noise to system
         """
 
+        self.state_size = state_size
+        self.action_size = action_size
         self.buffer_size = buffer_size
         self.batch_size = batch_size
         self.gamma = gamma
         self.tau = tau
         self.lr_actor = lr_actor
         self.lr_critic = lr_critic
-
         self.learn_f = learn_f
-
         self.weight_decay = weight_decay
-
-        self.state_size = state_size
-        self.action_size = action_size
         self.seed = random.seed(random_seed)
         self.device = torch.device(device)
-
         self.upper_bound = upper_bound
 
         # Actor Network (w/ Target Network)
@@ -151,6 +152,7 @@ class DDPGAgent(Agent):
 
         # Noise process
         self.noise = noise(action_size, random_seed)
+        self.add_noise = add_noise
 
         # Replay memory
         self.memory = ReplayBuffer(
@@ -163,12 +165,12 @@ class DDPGAgent(Agent):
 
         # init Step Counter
         self.i_step = 0
-        self.add_noise = add_noise
 
     def reset(self):
-        self.noise.reset()
+        if self.add_noise:
+            self.noise.reset()
 
-    def act(self, state, add_noise=None):
+    def act(self, state, add_noise=None, noise_dampening=1.0):
         """Returns actions for given state as per current policy."""
         if add_noise is None:
             add_noise = self.add_noise
@@ -178,7 +180,7 @@ class DDPGAgent(Agent):
             action = self.actor_local(state).cpu().data.numpy()
         self.actor_local.train()
         if add_noise:
-            action += self.noise.sample()
+            action += self.noise.sample() * noise_dampening
         return np.clip(action, -self.upper_bound, self.upper_bound)
 
     def step(self, state, action, reward, next_state, done):
@@ -195,7 +197,7 @@ class DDPGAgent(Agent):
             experiences = self.memory.sample()
             self.learn(experiences)
 
-    def learn(self, experiences: Tuple[torch.tensor]):
+    def learn(self, experiences: Tuple[torch.tensor, ...]):
         """
         Update policy and value parameters using given batch of experience
         tuples.
@@ -210,10 +212,10 @@ class DDPGAgent(Agent):
         experiences : Tuple[torch.Tensor]
             tuple of (s, a, r, s', done) tuples
 
-        CITATION: the alogrithm for implemeting the learn_every // update_every
+        CITATION: the alogorithm for implementing the learn_every // update_every
                   was derived from recommendations for the continuous control
                   project as well as reviewing recommendations on the Mentor
-                  help forums - Udacity's Deep Reinforement Learning Course
+                  help forums - Udacity's Deep Reinforcement Learning Course
         """
         states, actions, rewards, next_states, dones = experiences
 
@@ -243,10 +245,10 @@ class DDPGAgent(Agent):
 
         # ------------------- update target networks --------------------- #
         if (self.i_step % self.learn_f == 0):
-            self._soft_update(self.critic_local, self.critic_target)
-            self._soft_update(self.actor_local, self.actor_target)
+            self.soft_update(self.critic_local, self.critic_target)
+            self.soft_update(self.actor_local, self.actor_target)
 
-    def _soft_update(self, local_model, target_model):
+    def soft_update(self, local_model, target_model):
         """Soft update model parameters.
         θ_target = τ*θ_local + (1 - τ)*θ_target
 
@@ -286,23 +288,26 @@ class DDPGAgent(Agent):
         self.critic_local.load_state_dict(torch.load(critic_file))
         self.critic_target.load_state_dict(torch.load(critic_file))
 
+    def copy_from(self, other: Agent) -> None:
+        """Copy agent weights from other"""
+        # CITATION: https://github.com/salvioli/deep-rl-tennis/blob/master/ddpg_agent.py
+
+        self.actor_local.load_state_dict(other.actor_local.state_dict())
+        self.actor_target.load_state_dict(other.actor_target.state_dict())
+
+        self.critic_local.load_state_dict(other.critic_local.state_dict())
+        self.critic_target.load_state_dict(other.critic_target.state_dict())
+
+    def copy(self) -> Agent:
+        other = type(self).__new__(self.__class__)
+        other.__dict__.update(self.__dict__)
+
+        other.copy_from(self)
+
+        return other
+
     def save_hyperparameters(self, file: str) -> None:
         if file is None:
             raise ValueError("File must be specified")
-        data = {
-            'state_size': self.state_size,
-            'action_size': self.action_size,
-            'buffer_size': self.buffer_size,
-            'batch_size': self.batch_size,
-            'gamma': self.gamma,
-            'tau': self.tau,
-            'lr_actor': self.lr_actor,
-            'lr_critic': self.lr_critic,
-            'learn_f': self.learn_f,
-            'weight_decay': self.weight_decay,
-            'device': self.device,
-            'random_seed': self.random_seed,
-            'upper_bound': self.upper_bound,
-        }
         with Path(file).open("w") as fh:
-            toml.dump(data, fh)
+            toml.dump(self.__dict__, fh)
