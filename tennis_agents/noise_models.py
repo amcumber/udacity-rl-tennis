@@ -24,7 +24,7 @@ class Noise(ABC):
         ...
 
 
-class OUNoiseActionNoise(Noise):
+class OUActionNoise(Noise):
     """Ornstein-Uhlenbeck process applied to action space"""
 
     def __init__(
@@ -79,9 +79,9 @@ class AdaptiveParameterNoise:
         Adoption Coeffcient, used to adjust the current std-deviation - must be 
         > 1.00
     """
-    initial_std: float = 0.1,
-    desired_action_std: float = 0.1,
-    adoption_coef: float = 1.01,
+    initial_std: float = 0.1
+    desired_action_std: float = 0.1
+    adoption_coef: float = 1.01
 
     def __post_init__(self):
         self.reset()

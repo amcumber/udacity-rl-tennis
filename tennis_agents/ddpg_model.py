@@ -22,7 +22,7 @@ class DDPGActor(nn.Module):
         action_size: int,
         seed: int = 42,
         hidden_units: Tuple[int] = (128, 128, 64, 64),
-        bound: Tuple[float] = 1.0,
+        upper_bound: float = 1.0,
         act_func: callable = F.relu,
         batch_norm: bool = False
     ):
@@ -37,7 +37,7 @@ class DDPGActor(nn.Module):
             Random seed
         hidden_units : tuple[int]
             Number of nodes in first, second, and third hidden layer
-        bound : float
+        upper_bound : float
             upper bound of action space to clip to - equal and opposite to
             lower bound
         act_func : callable
@@ -74,7 +74,7 @@ class DDPGActor(nn.Module):
         setattr(self, f'fc{i+2}', nn.Linear(h, action_size))
         self.reset_parameters()
 
-        self.bound = bound
+        self.upper_bound = upper_bound
         self.act_func = act_func
 
     def reset_parameters(self):
@@ -94,7 +94,7 @@ class DDPGActor(nn.Module):
                 bn = getattr(self, f'bn{i+1}')
                 x = bn(x)
             if i == self.n_layers-1:
-                return torch.tanh(fc(x)) * self.bound
+                return torch.tanh(fc(x)) * self.upper_bound
             x = self.act_func(fc(x))
 
 

@@ -1,6 +1,6 @@
 [environment]
-# ENV_FILE = 'envs/Reacher_Windows_x86_64-twenty-agents/Reacher.exe'
-ENV_FILE = "/data/Tennis_Linux_NoVis/Tennis"
+ENV_FILE = 'envs\Tennis_Windows_x86_64\Tennis.exe'
+# ENV_FILE = "/data/Tennis_Linux_NoVis/Tennis"
 # ENV_TYPE = 'tennis'        # enum ('unity', 'gym') = choose which environment to run
 STATE_SIZE = 24            # State size for given environment
 ACTION_SIZE = 2            # Action size for given environment
@@ -11,7 +11,7 @@ ROOT_NAME = 'tennis'       # root name for save files
 [trainer]
 BATCH_SIZE = 16            # minibatch size
 N_EPISODES = 1000          # max number of episodes to run
-MAX_T = inf                # Max time steps within an episode
+MAX_T = 2000               # Max time steps within an episode
 WINDOW_LEN = 100           # window length for averaging
 
 [agent]
@@ -28,3 +28,4 @@ CRITIC_HIDDEN = [64, 64]   # Critic s -> h1+a -> ... -> hn -> 1
 ACTOR_ACT = 'relu'         # Actor Activation Function
 CRITIC_ACT = 'leaky_relu'  # Actor Activation Function
 ADD_NOISE = [false, false] # [false | "OU" | "Stocastic" ] add noise to the agent's action
+SEED = 42                  # random seed

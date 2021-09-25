@@ -151,7 +151,8 @@ dogImages/
 ## Pytorch
 # *.pt
 # *.p
-# *pkl
+*pkl
+*pth
 
 # Archives
 *.gz

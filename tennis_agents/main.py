@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -8,6 +8,7 @@ import pandas as pd
 import seaborn as sns
 import toml
 import torch
+import torch.nn.functional as F
 
 from tennis_agents.ddpg_agent import DDPGAgent
 from tennis_agents.trainers import TennisTrainer
@@ -29,38 +30,39 @@ class TrainerFactory(ABC):
 
 class ConfigFileFactory(TrainerFactory):
     @classmethod
-    def configure_trainer(cls, data: Dict[str, Any]):
+    def get_trainer(cls, data: Dict[str, Any]):
         """Configure trainer with environment and agents given config file"""
         # Unpack config
         # # Environment
-        ENV_FILE      = data['environment']['ENV_FILE']
-        STATE_SIZE    = data['environment']['STATE_SIZE']
-        ACTION_SIZE   = data['environment']['ACTION_SIZE']
-        UPPER_BOUND   = data['environment']['UPPER_BOUND']
-        SOLVED        = data['environment']['SOLVED']
-        ROOT_NAME     = data['environment']['ROOT_NAME']
+        ENV_FILE: str                  = data['environment']['ENV_FILE']
+        STATE_SIZE: int                =  data['environment']['STATE_SIZE']
+        ACTION_SIZE: int               = data['environment']['ACTION_SIZE']
+        UPPER_BOUND: float             = data['environment']['UPPER_BOUND']
+        SOLVED: float                  = data['environment']['SOLVED']
+        ROOT_NAME: str                 = data['environment']['ROOT_NAME']
 
         # # Trainer
-        Trainer       = TennisTrainer
-        BATCH_SIZE    = data['trainer']['BATCH_SIZE']
-        N_EPISODES    = data['trainer']['N_EPISODES']
-        MAX_T         = data['trainer']['MAX_T']
-        WINDOW_LEN    = data['trainer']['WINDOW_LEN']
+        Trainer                        = TennisTrainer
+        BATCH_SIZE: int                = data['trainer']['BATCH_SIZE']
+        N_EPISODES: int                = data['trainer']['N_EPISODES']
+        MAX_T: int                     = data['trainer']['MAX_T']
+        WINDOW_LEN: int                = data['trainer']['WINDOW_LEN']
 
         # # Agent
-        N_AGENTS      = data['agent']['N_AGENTS']
-        BUFFER_SIZE   = data['agent']['BUFFER_SIZE']
-        LEARN_F       = data['agent']['LEARN_F']
-        GAMMA         = data['agent']['GAMMA']
-        TAU           = data['agent']['TAU']
-        LR_ACTOR      = data['agent']['LR_ACTOR']
-        LR_CRITIC     = data['agent']['LR_CRITIC']
-        WEIGHT_DECAY  = data['agent']['WEIGHT_DECAY']
-        ACTOR_HIDDEN  = data['agent']['ACTOR_HIDDEN']
-        CRITIC_HIDDEN = data['agent']['CRITIC_HIDDEN']
-        ACTOR_ACT     = data['agent']['ACTOR_ACT']
-        CRITIC_ACT    = data['agent']['CRITIC_ACT']
-        ADD_NOISE     = data['agent']['ADD_NOISE']
+        N_AGENTS: int                  = data['agent']['N_AGENTS']
+        BUFFER_SIZE: int               = data['agent']['BUFFER_SIZE']
+        LEARN_F: int                   = data['agent']['LEARN_F']
+        GAMMA: float                   = data['agent']['GAMMA']
+        TAU: float                     = data['agent']['TAU']
+        LR_ACTOR: float                = data['agent']['LR_ACTOR']
+        LR_CRITIC: float               = data['agent']['LR_CRITIC']
+        WEIGHT_DECAY: float            = data['agent']['WEIGHT_DECAY']
+        ACTOR_HIDDEN: Tuple[int, ...]  = data['agent']['ACTOR_HIDDEN']
+        CRITIC_HIDDEN: Tuple[int, ...] = data['agent']['CRITIC_HIDDEN']
+        ACTOR_ACT: str                 = data['agent']['ACTOR_ACT']
+        CRITIC_ACT: str                = data['agent']['CRITIC_ACT']
+        ADD_NOISE: Tuple[bool, ...]    = data['agent']['ADD_NOISE']
+        SEED: int                      = data['agent']['SEED']
 
         envh = UnityEnvMgr(ENV_FILE)
 
@@ -78,12 +80,12 @@ class ConfigFileFactory(TrainerFactory):
             learn_f=LEARN_F,
             weight_decay=WEIGHT_DECAY,
             device=device,
-            random_seed=42,
+            random_seed=SEED,
             upper_bound=UPPER_BOUND,
             actor_hidden=ACTOR_HIDDEN,
             critic_hidden=CRITIC_HIDDEN,
             actor_act=cls.get_function(ACTOR_ACT),
-            actor_act=cls.get_function(CRITIC_ACT),
+            critic_act=cls.get_function(CRITIC_ACT),
             add_noise=ADD_NOISE[idx],
         ) for idx in range(N_AGENTS)]
         trainer = Trainer(
@@ -97,7 +99,7 @@ class ConfigFileFactory(TrainerFactory):
         )
         return trainer
 
-    @classmethod
+    @staticmethod
     def get_function(func_name: str):
         """Get function from torch.nn.funtional module"""
         return getattr(F, func_name)
@@ -128,7 +130,7 @@ def config_main(file:str) -> None:
     """
     factory = ConfigFileFactory()
     data = factory.read_toml(file)
-    trainer = factory.configure_trainer(data)
+    trainer = factory.get_trainer(data)
     scores = trainer.train()
     plot_scores(scores)
 

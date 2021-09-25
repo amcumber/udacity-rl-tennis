@@ -19,7 +19,7 @@ import torch.optim as optim
 
 from .agents import Agent, MultiAgent
 from .ddpg_model import DDPGActor, DDPGCritic
-from .noise_model import Noise, OUNoise
+from .noise_models import Noise, OUActionNoise
 from .replay_buffers import ReplayBuffer
 
 
@@ -46,7 +46,7 @@ class DDPGAgent(Agent):
         critic_hidden: Tuple[int] = (256, 128),
         critic_act: callable = F.leaky_relu,
         upper_bound: int = 1,
-        noise: Noise = OUNoise,
+        noise: Noise = OUActionNoise,
         add_noise: bool = True,
     ):
         """Initialize a DDPG Agent object.
@@ -86,13 +86,11 @@ class DDPGAgent(Agent):
             Critic Network to use for DDPG
         critic_hidden : tuple[int, ...] (256,128)
             Actor hidden architecture
-        noise : Noise (OUNoise)
+        noise : Noise (OUActionNoise)
             Noise Model to use for normalizing the A/C Network
         upper_bound : int (1)
             bounding box for action upper_bound is set to value and lower_bound
             is set to value
-        noise : Noise (OUNoise)
-            noise model
         add_noise : bool (True)
             add noise to system
         """

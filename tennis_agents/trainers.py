@@ -74,6 +74,7 @@ class TennisTrainer(Trainer):
         self.scores_ = None
         self.save_root = save_root
         self.max_t = max_t
+        self.n_workers = len(self.agents)
 
     def _report_score(self, i_episode, scores_window, scores, end="") -> None:
         """
@@ -116,7 +117,7 @@ class TennisTrainer(Trainer):
             trainer_file = f'trainer-{save_root}.toml'
             agent_file = f'agent-{save_root}.toml'
             self.save_hyperparameters(trainer_file)
-            self.agent.save_hyperparameters(agent_file)
+            self.agents[0].save_hyperparameters(agent_file)
         self.env.start()
         scores_episode = []  # list containing scores from each episode
         scores_window = deque(maxlen=self.window_len)
@@ -131,10 +132,10 @@ class TennisTrainer(Trainer):
             self._report_score(i_episode, scores_window, scores)
             if (i_episode + 1) % self.SAVE_EVERY == 0:
                 self._report_score(i_episode, scores_window, scores, end="\n")
-                self.agent.save(f"{self.save_root}-agent-checkpoint")
+                self.agents[0].save(f"{self.save_root}-agent-checkpoint")
                 self.save_scores(f'{self.save_root}-scores-checkpoint.pkl')
             if self._check_solved(i_episode, scores_window):
-                self.agent.save(self._get_save_file(f"{self.save_root}-solved"))
+                self.agents[0].save(self._get_save_file(f"{self.save_root}-solved"))
                 break
         return scores_episode
 
@@ -149,7 +150,9 @@ class TennisTrainer(Trainer):
         for _ in range(self.max_t):
             if render:
                 self.env.render()
-            actions = [agent.act(states) for agent in self.agents]
+            actions = [
+                agent.act(state) for agent, state in zip(self.agents, states)
+            ]
             next_states, rewards, dones, _ = self.env.step(actions)
             self._step_agents(states, actions, rewards, next_states, dones)
             states = next_states
@@ -170,14 +173,10 @@ class TennisTrainer(Trainer):
                   project as well as reviewing recommendations on the Mentor
                   help forums - Udacity's Deep Reinforcement Learning Course
         """
-        for idx in range(self.n_agents):
-            self.agent[idx].step(
-                states[idx],
-                actions[idx],
-                rewards[idx],
-                next_states[idx],
-                dones[idx],
-            )
+        for agent, state, action, reward, next_state, done in zip(
+            self.agents, states, actions, rewards, next_states, dones
+        ):
+            agent.step( state, action, reward, next_state, done,)
 
     def eval(self, n_episodes=3, render=False):
         ## scores_window
