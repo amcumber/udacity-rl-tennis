@@ -1,18 +1,18 @@
 [environment]
 # ENV_FILE = 'envs/Reacher_Windows_x86_64-twenty-agents/Reacher.exe'
-ENV_FILE = ''
-ENV_TYPE = 'tennis'        # enum ('unity', 'gym') = choose which environment to run
-CLOUD = true               # True if running in Udacity venv
+ENV_FILE = "/data/Tennis_Linux_NoVis/Tennis"
+# ENV_TYPE = 'tennis'        # enum ('unity', 'gym') = choose which environment to run
 STATE_SIZE = 24            # State size for given environment
 ACTION_SIZE = 2            # Action size for given environment
 UPPER_BOUND = 1.0          # upper bound of action space
+SOLVED = 0.5               # Score to be considered solved for given environment
+ROOT_NAME = 'tennis'       # root name for save files
 
 [trainer]
 BATCH_SIZE = 16            # minibatch size
 N_EPISODES = 1000          # max number of episodes to run
 MAX_T = inf                # Max time steps within an episode
 WINDOW_LEN = 100           # window length for averaging
-SAVE_ALL = true            # Save meta data from trainer as a pickle file`
 
 [agent]
 N_AGENTS = 2

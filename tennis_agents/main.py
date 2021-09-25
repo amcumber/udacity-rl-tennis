@@ -1,16 +1,21 @@
-import matplotlib.pyplot as plt
-import seaborn as sns
-from typing import Any, Dict
-import toml
+from abc import ABC, abstractmethod
 from pathlib import Path
-import numpy as np
+from typing import Any, Dict
 
-from tennis_agents.unity_environments import UnityEnvMgr
-from tennis_agents.trainers import TennisTrainer
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import seaborn as sns
+import toml
+import torch
+
 from tennis_agents.ddpg_agent import DDPGAgent
+from tennis_agents.trainers import TennisTrainer
+from tennis_agents.unity_environments import UnityEnvMgr
 
 
 class TrainerFactory(ABC):
+    @staticmethod
     def read_toml(file: str) -> Dict[str, Any]:
         assert Path(file).exists()
         with Path(file).open('r') as fh:
@@ -22,15 +27,18 @@ class TrainerFactory(ABC):
         """Returns a trainer object complete with environment manager and agents"""
 
 
-class ConfigurationFileFactory(TrainerFactory):
-    def configure_trainer(data: Dict[str, Any]):
+class ConfigFileFactory(TrainerFactory):
+    @classmethod
+    def configure_trainer(cls, data: Dict[str, Any]):
+        """Configure trainer with environment and agents given config file"""
         # Unpack config
         # # Environment
-        ROOT_NAME     = data['environment']['ROOT_NAME']
         ENV_FILE      = data['environment']['ENV_FILE']
-        UPPER_BOUND   = data['environment']['UPPER_BOUND']
         STATE_SIZE    = data['environment']['STATE_SIZE']
         ACTION_SIZE   = data['environment']['ACTION_SIZE']
+        UPPER_BOUND   = data['environment']['UPPER_BOUND']
+        SOLVED        = data['environment']['SOLVED']
+        ROOT_NAME     = data['environment']['ROOT_NAME']
 
         # # Trainer
         Trainer       = TennisTrainer
@@ -38,7 +46,6 @@ class ConfigurationFileFactory(TrainerFactory):
         N_EPISODES    = data['trainer']['N_EPISODES']
         MAX_T         = data['trainer']['MAX_T']
         WINDOW_LEN    = data['trainer']['WINDOW_LEN']
-        SAVE_ALL      = data['trainer']['SAVE_ALL']
 
         # # Agent
         N_AGENTS      = data['agent']['N_AGENTS']
@@ -75,8 +82,8 @@ class ConfigurationFileFactory(TrainerFactory):
             upper_bound=UPPER_BOUND,
             actor_hidden=ACTOR_HIDDEN,
             critic_hidden=CRITIC_HIDDEN,
-            actor_act=ACTOR_ACT,
-            actor_act=CRITIC_ACT,
+            actor_act=cls.get_function(ACTOR_ACT),
+            actor_act=cls.get_function(CRITIC_ACT),
             add_noise=ADD_NOISE[idx],
         ) for idx in range(N_AGENTS)]
         trainer = Trainer(
@@ -85,10 +92,15 @@ class ConfigurationFileFactory(TrainerFactory):
             n_episodes=N_EPISODES,
             max_t=MAX_T,
             window_len=WINDOW_LEN,
-            solved=solved,
+            solved=SOLVED,
             save_root=ROOT_NAME,
         )
         return trainer
+
+    @classmethod
+    def get_function(func_name: str):
+        """Get function from torch.nn.funtional module"""
+        return getattr(F, func_name)
 
 def plot_scores(scores, i_map=0):
     sns.set_style('darkgrid')
@@ -103,20 +115,20 @@ def plot_scores(scores, i_map=0):
     _ ,ax = plt.subplots(1,1, figsize=(10,8))
 
     ax = score_df.plot(ax=ax, color=cmap[2*(i_map%4):])
-    ax.set_title(f'DDPG Scores vs Time (LR=({LR_ACTOR:.1e}, ' +
-                 f'{LR_CRITIC:.1e}), Lf={LEARN_F})')
+    ax.set_title('DDPG Scores vs Time for Tennis')
     ax.set_xlabel('Episode #')
     ax.set_ylabel('Score')
     plt.show()
 
 
-def main(file:str) -> None:
+def config_main(file:str) -> None:
     """
     Main Function that will load configuration from file, train, and plot the
     resulting scores
     """
-    data = read_toml(file)
-    _, trainer = configure_trainer(data)
+    factory = ConfigFileFactory()
+    data = factory.read_toml(file)
+    trainer = factory.configure_trainer(data)
     scores = trainer.train()
     plot_scores(scores)
 
@@ -127,5 +139,5 @@ if __name__ == "__main__":
     p.add_argument('config', help='Configuration File - toml')
     args = p.parse_args()
 
-    main(args.config)
+    config_main(args.config)
 
