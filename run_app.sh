@@ -5,4 +5,4 @@
 python -m pip install ./python
 python -m pip install -r requirements.txt
 
-python main.py
+python ./tennis_agents/main.py
