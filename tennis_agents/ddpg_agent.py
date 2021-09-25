@@ -48,6 +48,7 @@ class DDPGAgent(Agent):
         upper_bound: int = 1,
         noise: Noise = OUActionNoise,
         add_noise: bool = True,
+        batch_norm: bool = True,
     ):
         """Initialize a DDPG Agent object.
 
@@ -108,6 +109,7 @@ class DDPGAgent(Agent):
         self.seed = random.seed(random_seed)
         self.device = torch.device(device)
         self.upper_bound = upper_bound
+        self.batch_norm = batch_norm
 
         # Actor Network (w/ Target Network)
         self.actor_local = actor(
@@ -116,6 +118,8 @@ class DDPGAgent(Agent):
             random_seed,
             hidden_units=actor_hidden,
             upper_bound=upper_bound,
+            act_func=actor_act,
+            batch_norm=batch_norm
         ).to(device)
         self.actor_target = actor(
             state_size,
@@ -124,6 +128,7 @@ class DDPGAgent(Agent):
             hidden_units=actor_hidden,
             upper_bound=upper_bound,
             act_func=actor_act,
+            batch_norm=batch_norm
         ).to(device)
         self.actor_optimizer = optim.Adam(
             self.actor_local.parameters(),
@@ -136,6 +141,8 @@ class DDPGAgent(Agent):
             action_size,
             random_seed,
             hidden_units=critic_hidden,
+            act_func=critic_act,
+            batch_norm=batch_norm
         ).to(device)
         self.critic_target = critic(
             state_size,
@@ -143,6 +150,7 @@ class DDPGAgent(Agent):
             random_seed,
             hidden_units=critic_hidden,
             act_func=critic_act,
+            batch_norm=batch_norm
         ).to(device)
         self.critic_optimizer = optim.Adam(
             self.critic_local.parameters(),

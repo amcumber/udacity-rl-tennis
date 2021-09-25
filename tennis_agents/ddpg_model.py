@@ -21,7 +21,7 @@ class DDPGActor(nn.Module):
         state_size: int,
         action_size: int,
         seed: int = 42,
-        hidden_units: Tuple[int] = (128, 128, 64, 64),
+        hidden_units: Tuple[int] = (128, 64),
         upper_bound: float = 1.0,
         act_func: callable = F.relu,
         batch_norm: bool = False
@@ -52,30 +52,22 @@ class DDPGActor(nn.Module):
         """
         super().__init__()
         self.seed = torch.manual_seed(seed)
-        self.n_layers = len(hidden_units)+1
         self.batch_norm = batch_norm
-        for i, h in enumerate(hidden_units):
-            if i == 0:
-                if batch_norm:
-                    self.bn1 = nn.BatchNorm1d(state_size)
-                self.fc1 = nn.Linear(state_size, h)
-            else:
-                setattr(self,
-                        f'fc{i+1}',
-                        nn.Linear(last_h, h))
-                if batch_norm:
-                    setattr(self,
-                            f'bn{i+1}',
-                            nn.BatchNorm1d(last_h)
-                    )
-            last_h = h
-
-        setattr(self, f'bn{i+2}', nn.BatchNorm1d(h))
-        setattr(self, f'fc{i+2}', nn.Linear(h, action_size))
-        self.reset_parameters()
-
         self.upper_bound = upper_bound
         self.act_func = act_func
+        self.n_layers = 3
+
+        self.fc1 = nn.Linear(state_size, hidden_units[0])
+        self.fc2 = nn.Linear(hidden_units[0], hidden_units[1])
+        self.fc3 = nn.Linear(hidden_units[1], action_size)
+
+        if batch_norm:
+            self.bn1 = nn.BatchNorm1d(state_size)
+            self.bn2 = nn.BatchNorm1d(hidden_units[0])
+            self.bn3 = nn.BatchNorm1d(hidden_units[1])
+
+        self.reset_parameters()
+
 
     def reset_parameters(self):
         for i in range(self.n_layers):
@@ -88,14 +80,14 @@ class DDPGActor(nn.Module):
     def forward(self, state):
         """Build an actor (policy) network that maps states -> actions."""
         x = state
-        for i in range(self.n_layers):
-            fc = getattr(self, f'fc{i+1}')
-            if self.batch_norm:
-                bn = getattr(self, f'bn{i+1}')
-                x = bn(x)
-            if i == self.n_layers-1:
-                return torch.tanh(fc(x)) * self.upper_bound
-            x = self.act_func(fc(x))
+        if self.batch_norm:
+            x = self.act_func(self.fc1(x)) # TODO
+            x = self.act_func(self.fc2(self.bn2(x)))
+            x = F.tanh(self.fc3(self.bn3(x)))
+            return x
+        x = self.act_func(self.fc1(x))
+        x = self.act_func(self.fc2(x))
+        x = F.tanh(self.fc3(x))
 
 
 class DDPGCritic(nn.Module):
@@ -106,7 +98,7 @@ class DDPGCritic(nn.Module):
         state_size: int,
         action_size: int,
         seed: int,
-        hidden_units: tuple = (128, 128, 64, 64),
+        hidden_units: tuple = (128, 64),
         act_func: callable = F.leaky_relu,
         batch_norm : bool = False,
     ):
@@ -131,24 +123,19 @@ class DDPGCritic(nn.Module):
         """
         super().__init__()
         self.seed = torch.manual_seed(seed)
-        
-        self.n_layers = len(hidden_units)+1
         self.batch_norm = batch_norm
-        for i, h in enumerate(hidden_units):
-            if i == 0:
-                self.bn1 = nn.BatchNorm1d(state_size)
-                self.fc1 = nn.Linear(state_size, h)
-            elif i == 1:
-                self.bn2 = nn.BatchNorm1d(last_h + action_size)
-                self.fc2 = nn.Linear(last_h + action_size, h)
-            else:
-                setattr(self, f'bn{i+1}', nn.BatchNorm1d(last_h))
-                setattr(self, f'fc{i+1}', nn.Linear(last_h, h))
-            last_h = h
-        setattr(self, f'bn{i+2}', nn.BatchNorm1d(h))
-        setattr(self, f'fc{i+2}', nn.Linear(h, 1))
-
         self.act_func = act_func
+        self.n_layers = 3
+
+        self.fc1 = nn.Linear(state_size, hidden_units[0])
+        self.fc2 = nn.Linear(hidden_units[0] + action_size,
+                             hidden_units[1])
+        self.fc3 = nn.Linear(hidden_units[1], 1)
+        if batch_norm:
+            self.bn1 = nn.BatchNorm1d(state_size)
+            self.bn2 = nn.BatchNorm1d(hidden_units[0] + action_size)
+            self.bn3 = nn.BatchNorm1d(hidden_units[1])
+
         self.reset_parameters()
 
     def reset_parameters(self):
@@ -165,13 +152,12 @@ class DDPGCritic(nn.Module):
         pairs -> Q-values.
         """
         x = state
-        for i in range(self.n_layers):
-            fc = getattr(self, f'fc{i+1}')
-            if self.batch_norm:
-                bn = getattr(self, f'bn{i+1}')
-                x = bn(x)
-            if i == self.n_layers-1:
-                return fc(x)
-            elif i == 1:
-                x = torch.cat((x, action), dim=1)
-            x = self.act_func(fc(x))
+        if self.batch_norm:
+            x = self.act_func(self.fc1(x)) # TODO
+            x = self.act_func(self.fc2(self.bn2(x)))
+            x = self.fc3(self.bn3(x))
+            return x
+        x = self.act_func(self.fc1(x))
+        x = self.act_func(self.fc2(x))
+        x = self.fc3(x)
+        return x

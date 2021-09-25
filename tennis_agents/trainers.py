@@ -121,7 +121,11 @@ class TennisTrainer(Trainer):
         self.env.start()
         scores_episode = []  # list containing scores from each episode
         scores_window = deque(maxlen=self.window_len)
+        # init weights
         rng = range(self.n_episodes)
+        if len(self.agents) > 1:
+            for i in range(1, self.n_workers):
+                self.agents[i].copy_from(self.agents[0])
         if is_cloud:
             rng = keep_awake(rng)
         for i_episode in rng:

@@ -35,7 +35,7 @@ class ConfigFileFactory(TrainerFactory):
         # Unpack config
         # # Environment
         ENV_FILE: str                  = data['environment']['ENV_FILE']
-        STATE_SIZE: int                =  data['environment']['STATE_SIZE']
+        STATE_SIZE: int                = data['environment']['STATE_SIZE']
         ACTION_SIZE: int               = data['environment']['ACTION_SIZE']
         UPPER_BOUND: float             = data['environment']['UPPER_BOUND']
         SOLVED: float                  = data['environment']['SOLVED']
@@ -57,12 +57,13 @@ class ConfigFileFactory(TrainerFactory):
         LR_ACTOR: float                = data['agent']['LR_ACTOR']
         LR_CRITIC: float               = data['agent']['LR_CRITIC']
         WEIGHT_DECAY: float            = data['agent']['WEIGHT_DECAY']
-        ACTOR_HIDDEN: Tuple[int, ...]  = data['agent']['ACTOR_HIDDEN']
-        CRITIC_HIDDEN: Tuple[int, ...] = data['agent']['CRITIC_HIDDEN']
+        ACTOR_HIDDEN: Tuple[int, int]  = data['agent']['ACTOR_HIDDEN']
+        CRITIC_HIDDEN: Tuple[int, int] = data['agent']['CRITIC_HIDDEN']
         ACTOR_ACT: str                 = data['agent']['ACTOR_ACT']
         CRITIC_ACT: str                = data['agent']['CRITIC_ACT']
-        ADD_NOISE: Tuple[bool, ...]    = data['agent']['ADD_NOISE']
+        ADD_NOISE: Tuple[bool, bool]   = data['agent']['ADD_NOISE']
         SEED: int                      = data['agent']['SEED']
+        BATCH_NORM: float              = data['agent']['BATCH_NORM']
 
         envh = UnityEnvMgr(ENV_FILE)
 
@@ -87,6 +88,7 @@ class ConfigFileFactory(TrainerFactory):
             actor_act=cls.get_function(ACTOR_ACT),
             critic_act=cls.get_function(CRITIC_ACT),
             add_noise=ADD_NOISE[idx],
+            batch_norm=BATCH_NORM,
         ) for idx in range(N_AGENTS)]
         trainer = Trainer(
             agents=agents,

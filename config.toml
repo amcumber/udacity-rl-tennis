@@ -27,5 +27,6 @@ ACTOR_HIDDEN = [64, 64]    # Actor Hidden architecture s -> h1 -> ... -> hn -> a
 CRITIC_HIDDEN = [64, 64]   # Critic s -> h1+a -> ... -> hn -> 1
 ACTOR_ACT = 'relu'         # Actor Activation Function
 CRITIC_ACT = 'leaky_relu'  # Actor Activation Function
-ADD_NOISE = [false, false] # [false | "OU" | "Stocastic" ] add noise to the agent's action
+ADD_NOISE = [true, false]  # [false | "OU" | "Stocastic" ] add noise to the agent's action
 SEED = 42                  # random seed
+BATCH_NORM = true          # apply batch_normalization for agents
