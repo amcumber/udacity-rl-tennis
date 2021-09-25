@@ -31,7 +31,7 @@ class Buffer(ABC):
 
 class ReplayBuffer(Buffer):
     """
-    Fixed-size buffer to store experience tuples
+    Fixed-size buffer to store experience tuples - updated with tennis module
 
     Parameters
     ----------
@@ -49,13 +49,11 @@ class ReplayBuffer(Buffer):
 
     def __init__(
         self,
-        action_size: int,
         buffer_size: int,
         batch_size: int,
         seed: int = 42,
         device: str = "cpu",
     ):
-        self.action_size = action_size
         self.buffer_size = buffer_size
         self.batch_size = batch_size
         self.device = torch.device(device)

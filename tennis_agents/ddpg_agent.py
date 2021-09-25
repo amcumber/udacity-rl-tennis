@@ -8,7 +8,7 @@
 import copy
 import random
 from pathlib import Path
-from typing import Tuple
+from typing import Tuple, Type
 
 import numpy as np
 import toml
@@ -23,14 +23,16 @@ from .noise_models import Noise, OUActionNoise
 from .replay_buffers import ReplayBuffer
 
 
-class DDPGAgent(Agent):
-    """Interacts with and learns from the environment."""
+class DDPGMultiAgent(Agent):
+    """
+    DDPG Multi agent implementation - Recieves memories from trainer
+    Interacts with and learns from the environment.
+    """
     def __init__(
         self,
         state_size: int,
         action_size: int,
-        buffer_size: int,
-        batch_size: int,
+        memory: ReplayBuffer,
         gamma: float,
         tau: float,
         lr_actor: float,
@@ -46,7 +48,7 @@ class DDPGAgent(Agent):
         critic_hidden: Tuple[int] = (256, 128),
         critic_act: callable = F.leaky_relu,
         upper_bound: int = 1,
-        noise: Noise = OUActionNoise,
+        noise: Type[Noise] = OUActionNoise,
         add_noise: bool = True,
         batch_norm: bool = True,
     ):
@@ -58,10 +60,6 @@ class DDPGAgent(Agent):
             dimension of each state
         action_size : int
             dimension of each action
-        buffer_size : int
-            replay buffer size
-        batch_size : int
-            minibatch size
         gamma : float
             discount factor
         tau : float
@@ -98,8 +96,7 @@ class DDPGAgent(Agent):
 
         self.state_size = state_size
         self.action_size = action_size
-        self.buffer_size = buffer_size
-        self.batch_size = batch_size
+        self.memory = memory
         self.gamma = gamma
         self.tau = tau
         self.lr_actor = lr_actor
@@ -162,15 +159,6 @@ class DDPGAgent(Agent):
         self.noise = noise(action_size, random_seed)
         self.add_noise = add_noise
 
-        # Replay memory
-        self.memory = ReplayBuffer(
-            action_size,
-            buffer_size,
-            batch_size,
-            random_seed,
-            device=device,
-        )
-
         # init Step Counter
         self.i_step = 0
 
@@ -182,7 +170,7 @@ class DDPGAgent(Agent):
         """Returns actions for given state as per current policy."""
         if add_noise is None:
             add_noise = self.add_noise
-        state = torch.from_numpy(state).float().to(self.device)
+        state = torch.from_numpy(np.expand_dims(state, 0)).float().to(self.device)
         self.actor_local.eval()
         with torch.no_grad():
             action = self.actor_local(state).cpu().data.numpy()
@@ -201,7 +189,7 @@ class DDPGAgent(Agent):
         self.memory.add(state, action, reward, next_state, done)
 
         # Learn, if enough samples are available in memory
-        if (len(self.memory) > self.batch_size):
+        if (len(self.memory) > self.memory.batch_size):
             experiences = self.memory.sample()
             self.learn(experiences)
 

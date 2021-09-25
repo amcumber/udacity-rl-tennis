@@ -92,9 +92,9 @@ class TennisTrainer(Trainer):
         """
         print(
             f"\rEpisode {i_episode+1:d}"
-            f"\tAverage Score (episode): {np.mean(scores):.2f}",
-            f"\tMax Score (episode): {np.max(scores):.2f}",
-            f"\tAverage Score (deque): {np.mean(scores_window):.2f}",
+            f"\tAverage Score (episode): {np.mean(scores):.4f}",
+            f"\tMax Score (episode): {np.max(scores):.4f}",
+            f"\tAverage Score (deque): {np.mean(scores_window):.4f}",
             end=end,
         )
 
@@ -102,7 +102,7 @@ class TennisTrainer(Trainer):
         if np.mean(scores_window) >= self.solved:
             print(
                 f"\nEnvironment solved in {i_episode+1:d} episodes!"
-                f"\tAverage Score: {np.mean(scores_window):.2f}"
+                f"\tAverage Score: {np.mean(scores_window):.4f}"
             )
             return True
         return False
@@ -122,10 +122,10 @@ class TennisTrainer(Trainer):
         scores_episode = []  # list containing scores from each episode
         scores_window = deque(maxlen=self.window_len)
         # init weights
-        rng = range(self.n_episodes)
         if len(self.agents) > 1:
             for i in range(1, self.n_workers):
                 self.agents[i].copy_from(self.agents[0])
+        rng = range(self.n_episodes)
         if is_cloud:
             rng = keep_awake(rng)
         for i_episode in rng:
@@ -180,7 +180,7 @@ class TennisTrainer(Trainer):
         for agent, state, action, reward, next_state, done in zip(
             self.agents, states, actions, rewards, next_states, dones
         ):
-            agent.step( state, action, reward, next_state, done,)
+            agent.step(state, action, reward, next_state, done)
 
     def eval(self, n_episodes=3, render=False):
         ## scores_window

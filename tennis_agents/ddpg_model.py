@@ -81,9 +81,15 @@ class DDPGActor(nn.Module):
         """Build an actor (policy) network that maps states -> actions."""
         x = state
         if self.batch_norm:
-            x = self.act_func(self.fc1(x)) # TODO
-            x = self.act_func(self.fc2(self.bn2(x)))
-            x = F.tanh(self.fc3(self.bn3(x)))
+            x = self.bn1(x)
+            x = self.fc1(x)
+            x = self.act_func(x)
+            x = self.bn2(x)
+            x = self.fc2(x)
+            x = self.act_func(x)
+            x = self.bn3(x)
+            x = self.fc3(x)
+            x = F.tanh(x)
             return x
         x = self.act_func(self.fc1(x))
         x = self.act_func(self.fc2(x))
@@ -153,11 +159,18 @@ class DDPGCritic(nn.Module):
         """
         x = state
         if self.batch_norm:
-            x = self.act_func(self.fc1(x)) # TODO
-            x = self.act_func(self.fc2(self.bn2(x)))
-            x = self.fc3(self.bn3(x))
+            x = self.bn1(x)
+            x = self.fc1(x)
+            x = self.act_func(x)
+            x = torch.cat((x, action), dim=1)
+            x = self.bn2(x)
+            x = self.fc2(x)
+            x = self.act_func(x)
+            x = self.bn3(x)
+            x = self.fc3(x)
             return x
         x = self.act_func(self.fc1(x))
+        x = torch.cat((x, action), dim=1)
         x = self.act_func(self.fc2(x))
         x = self.fc3(x)
         return x

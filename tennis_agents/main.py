@@ -10,9 +10,10 @@ import toml
 import torch
 import torch.nn.functional as F
 
-from tennis_agents.ddpg_agent import DDPGAgent
+from tennis_agents.ddpg_agent import DDPGMultiAgent
 from tennis_agents.trainers import TennisTrainer
 from tennis_agents.unity_environments import UnityEnvMgr
+from tennis_agents.replay_buffers import ReplayBuffer
 
 
 class TrainerFactory(ABC):
@@ -69,11 +70,16 @@ class ConfigFileFactory(TrainerFactory):
 
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         # torch.device("cpu")
-        agents = [DDPGAgent(
+        memory = ReplayBuffer(
+            buffer_size = BUFFER_SIZE,
+            batch_size = BATCH_SIZE,
+            seed = SEED,
+            device = device,
+        )
+        agents = [DDPGMultiAgent(
             state_size=STATE_SIZE,
             action_size=ACTION_SIZE,
-            buffer_size=BUFFER_SIZE,
-            batch_size=BATCH_SIZE,
+            memory=memory,
             gamma=GAMMA,
             tau=TAU,
             lr_actor=LR_ACTOR,
