@@ -1,5 +1,5 @@
 [environment]
-ENV_TYPE = 'tennis'       # enum ('unity', 'gym') = choose which environment to run
+ENV_TYPE = 'tennis'       # enum ["gym" | "Tennis" | "Soccer"] = choose which environment to run
 CLOUD = true              # True if running in Udacity venv
 
 [trainer]
@@ -19,4 +19,6 @@ LR_CRITIC = 1e-4          # learning rate for the critic
 WEIGHT_DECAY = 0.0        #0.0001 - L2 weight decay parameter
 ACTOR_UNITS = [256, 128]  # Actor Hidden architecture s -> h1 -> ... -> hn -> a
 CRITIC_UNITS = [256, 128] # Critic s -> h1+a -> ... -> hn -> 1
-ADD_NOISE = false         # Add OU noise to the agent's action
+ADD_NOISE = false         # [false | "OU" | "Stocastic" ] add noise to the agent's action
+ACTOR_ACT = 'relu'        # Actor Activation Function
+CRITIC_ACT = 'leaky_relu' # Actor Activation Function
