@@ -5,7 +5,7 @@ import pandas as pd
 import seaborn as sns
 
 
-def plot_scores(scores, i_map=0):
+def plot_scores(scores, i_map=0, count=100):
     sns.set_style('darkgrid')
     sns.set_context('talk')
     sns.set_palette('Paired')
@@ -13,7 +13,7 @@ def plot_scores(scores, i_map=0):
 
     scores = np.array(scores).squeeze()
     score_df = pd.DataFrame({'scores': scores})
-    score_df = score_df.assign(mean=lambda df: df.rolling(10).mean()['scores'])
+    score_df = score_df.assign(mean=lambda df: df.rolling(count).mean()['scores'])
 
     fig ,ax = plt.subplots(1,1, figsize=(10,8))
 
