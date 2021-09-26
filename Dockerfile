@@ -4,13 +4,16 @@ LABEL author="aaron.mcumber@gmail.com"
 
 WORKDIR /deep-rl-tennis/
 
-RUN apt-get update && apt-get install -y unzip && \
-    python -m pip install unityagents && \
-    apt-get install wget && \
-    mkdir -p resources && \
+RUN apt-get update && \
+    apt-get install -y unzip && \
+    python -m pip install unityagents
+
+RUN apt-get install wget && \
+    mkdir -p runs && \
+    mkdir -p data && \
     wget https://s3-us-west-1.amazonaws.com/udacity-drlnd/P3/Tennis/Tennis_Linux_NoVis.zip -P ./resources/ && \
     wget https://s3-us-west-1.amazonaws.com/udacity-drlnd/P3/Tennis/Tennis_Linux.zip -P ./resources/ && \
-    cd resources && \
+    cd data && \
     unzip Tennis_Linux.zip && \
     unzip Tennis_Linux_NoVis.zip && \
     rm Tennis_Linux.zip && \
