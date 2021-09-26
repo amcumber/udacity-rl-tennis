@@ -64,7 +64,6 @@ class OUActionNoise(Noise):
 # Related article:
 # https://openai.com/blog/better-exploration-with-parameter-noise/
 # and related Paper: https://arxiv.org/abs/1706.01905
-@dataclass
 class AdaptiveParameterNoise:
     """
     Adaptive Parameter Noise Class from OpenAI baselines
@@ -79,9 +78,15 @@ class AdaptiveParameterNoise:
         Adoption Coeffcient, used to adjust the current std-deviation - must be 
         > 1.00
     """
-    initial_std: float = 0.1
-    desired_action_std: float = 0.1
-    adoption_coef: float = 1.01
+    def __init__(self,
+        initial_std: float = 0.1,
+        desired_action_std: float = 0.1,
+        adoption_coef: float = 1.01,
+    ):
+        self.initial_std = initial_std
+        self.desired_action_std = desired_action_std
+        self.adoption_coef = adoption_coef
+
 
     def __post_init__(self):
         self.reset()
