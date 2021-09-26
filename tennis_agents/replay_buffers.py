@@ -74,7 +74,14 @@ class ReplayBuffer(Buffer):
         self.memory.append(e)
 
     def sample(self) -> Tuple[Tensor, Tensor, Tensor, Tensor, Tensor]:
-        """Randomly sample a batch of experiences from memory."""
+        """
+        Randomly sample a batch of experiences from memory.
+        Returns
+        -------
+        Tuple : states, actions, rewards, next_states, dones
+            len of each Tensor == batch_size
+        """
+
         experiences = random.sample(self.memory, k=self.batch_size)
 
         states = (
