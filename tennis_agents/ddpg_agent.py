@@ -19,7 +19,7 @@ import torch.optim as optim
 
 from .agents import Agent, MultiAgent
 from .ddpg_model import DDPGActor, DDPGCritic
-from .noise_models import Noise, OUActionNoise
+from .noise_models import Noise
 from .replay_buffers import ReplayBuffer
 
 
@@ -33,6 +33,7 @@ class DDPGMultiAgent(Agent):
         state_size: int,
         action_size: int,
         memory: ReplayBuffer,
+        noise: Noise,
         gamma: float,
         tau: float,
         lr_actor: float,
@@ -48,7 +49,6 @@ class DDPGMultiAgent(Agent):
         critic_hidden: Tuple[int] = (256, 128),
         critic_act: callable = F.leaky_relu,
         upper_bound: int = 1,
-        noise: Type[Noise] = OUActionNoise,
         add_noise: bool = True,
         batch_norm: bool = True,
     ):
@@ -97,6 +97,7 @@ class DDPGMultiAgent(Agent):
         self.state_size = state_size
         self.action_size = action_size
         self.memory = memory
+        self.noise = noise
         self.gamma = gamma
         self.tau = tau
         self.lr_actor = lr_actor
@@ -107,6 +108,12 @@ class DDPGMultiAgent(Agent):
         self.device = torch.device(device)
         self.upper_bound = upper_bound
         self.batch_norm = batch_norm
+
+        # Noise process
+        self.add_noise = add_noise
+
+        # init Step Counter
+        self.i_step = 0
 
         # Actor Network (w/ Target Network)
         self.actor_local = actor(
@@ -154,13 +161,6 @@ class DDPGMultiAgent(Agent):
             lr=lr_critic,
             weight_decay=weight_decay,
         )
-
-        # Noise process
-        self.noise = noise(action_size, random_seed)
-        self.add_noise = add_noise
-
-        # init Step Counter
-        self.i_step = 0
 
     def reset(self):
         if self.add_noise:
@@ -271,8 +271,8 @@ class DDPGMultiAgent(Agent):
             file as "checkpoint_actor.pth" and the critic file as
             "checkpoint_critic.pth
         """
-        actor_file = root_filename + "_actor.pth"
-        critic_file = root_filename + "_critic.pth"
+        actor_file = f"{root_filename}_actor.pth"
+        critic_file = f"{root_filename}_critic.pth"
         torch.save(self.actor_local.state_dict(), actor_file)
         torch.save(self.critic_local.state_dict(), critic_file)
 

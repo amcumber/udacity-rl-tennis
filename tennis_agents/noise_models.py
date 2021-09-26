@@ -29,14 +29,14 @@ class OUActionNoise(Noise):
 
     def __init__(
         self,
-        size: int,
+        action_size: int,
         seed: int,
         mu: float = 0.0,
         theta: float = 0.15,
         sigma: float = 0.2,
     ):
         """Initialize parameters and noise process."""
-        self.mu = mu * np.ones(size)
+        self.mu = mu * np.ones(action_size)
         self.theta = theta
         self.sigma = sigma
         self.seed = random.seed(seed)

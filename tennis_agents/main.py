@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any, Dict, Tuple
+import logging
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -14,7 +15,10 @@ from tennis_agents.ddpg_agent import DDPGMultiAgent
 from tennis_agents.trainers import TennisTrainer
 from tennis_agents.unity_environments import UnityEnvMgr
 from tennis_agents.replay_buffers import ReplayBuffer
+from tennis_agents.noise_models import AdaptiveParameterNoise, OUActionNoise
 
+
+# logger = logging.getLogger("TennisTrainer")
 
 class TrainerFactory(ABC):
     @staticmethod
@@ -66,10 +70,22 @@ class ConfigFileFactory(TrainerFactory):
         SEED: int                      = data['agent']['SEED']
         BATCH_NORM: float              = data['agent']['BATCH_NORM']
 
+        # # Noise
+        NOISE_TYPE = data['noise'].pop('TYPE')
+        NOISE_DATA = {key.lower(): val for key, val in data['noise'].items()}
+
         envh = UnityEnvMgr(ENV_FILE)
 
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        # logger.debug(f'Device Info:{device}')
+        # logger.debug(f'Config Data: {data}')
         # torch.device("cpu")
+        if NOISE_TYPE == 'OU':
+            NOISE_DATA['action_size'] = ACTION_SIZE
+            NOISE_DATA['seed'] = SEED
+            noise = OUActionNoise(**NOISE_DATA)
+        elif NOISE_TYPE == 'AP':
+            noise = AdaptiveParameterNoise(**NOISE_DATA)
         memory = ReplayBuffer(
             buffer_size = BUFFER_SIZE,
             batch_size = BATCH_SIZE,
@@ -95,6 +111,7 @@ class ConfigFileFactory(TrainerFactory):
             critic_act=cls.get_function(CRITIC_ACT),
             add_noise=ADD_NOISE[idx],
             batch_norm=BATCH_NORM,
+            noise=noise,
         ) for idx in range(N_AGENTS)]
         trainer = Trainer(
             agents=agents,

@@ -93,7 +93,7 @@ class DDPGActor(nn.Module):
             return x
         x = self.act_func(self.fc1(x))
         x = self.act_func(self.fc2(x))
-        x = F.tanh(self.fc3(x))
+        x = torch.tanh(self.fc3(x))
 
 
 class DDPGCritic(nn.Module):

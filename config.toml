@@ -10,18 +10,18 @@ ROOT_NAME = 'tennis'       # root name for save files
 
 [trainer]
 BATCH_SIZE = 512           # minibatch size
-N_EPISODES = 3000          # max number of episodes to run
+N_EPISODES = 5000          # max number of episodes to run
 MAX_T = 2000               # Max time steps within an episode
 WINDOW_LEN = 100           # window length for averaging
 
 [agent]
 N_AGENTS = 2
-BUFFER_SIZE = 1000000      # Replay buffer size
-LEARN_F = 20               # Learning Frequency within episodes
-GAMMA = 0.95               # discount factor
-TAU = 1e-2                 # soft update target parameter
-LR_ACTOR = 1e-3            # learning rate for the actor
-LR_CRITIC = 1e-3           # learning rate for the critic
+BUFFER_SIZE = 200000       # Replay buffer size
+LEARN_F = 1                # Learning Frequency within episodes
+GAMMA = 0.99               # discount factor
+TAU = 1e-3                 # soft update target parameter
+LR_ACTOR = 1e-4            # learning rate for the actor
+LR_CRITIC = 1e-4           # learning rate for the critic
 WEIGHT_DECAY = 0.0         # (0.0001) L2 weight decay parameter
 ACTOR_HIDDEN = [64, 64]    # Actor Hidden architecture s -> h1 -> ... -> hn -> a
 CRITIC_HIDDEN = [64, 64]   # Critic s -> h1+a -> ... -> hn -> 1
@@ -31,6 +31,14 @@ ADD_NOISE = [true, false]  # [false | "OU" | "Stocastic" ] add noise to the agen
 SEED = 42                  # random seed
 BATCH_NORM = true          # apply batch_normalization for agents
 
-# [NOISE]
-# TYPE = 'OU'
-# SIMGA = 0.01
+[noise]
+TYPE = 'OU'                # ['OU', 'AP'], OU action noise, AP parameter noise
+# The following parameters are specific to OU noise - comment out if using AP
+SIGMA = 0.01
+MU = 0.0
+THETA = 0.15
+
+# # The following parameters are specific to AP noise - comment out if using OU
+# INITIAL_STD = 0.1
+# DESIRED_ACTION_STD = 0.1
+# ADOPTION_COEF = 1.01

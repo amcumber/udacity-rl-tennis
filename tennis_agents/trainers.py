@@ -4,6 +4,7 @@ from collections import deque
 from datetime import datetime
 from pathlib import Path
 from typing import Tuple
+# import logging
 
 import numpy as np
 import toml
@@ -11,6 +12,8 @@ import toml
 from .agents import Agent
 from .environments import EnvironmentMgr
 from .workspace_utils import keep_awake
+
+# logger = logging.getLogger('TennisTrainer')
 
 
 class Trainer(ABC):
@@ -24,7 +27,7 @@ class Trainer(ABC):
 
 
 class TennisTrainer(Trainer):
-    SAVE_EVERY = 10
+    SAVE_EVERY = 50
 
     def __init__(
         self,
@@ -34,6 +37,7 @@ class TennisTrainer(Trainer):
         window_len: int,
         solved: float,
         save_root: str = "checkpoint",
+        save_dir: str = 'runs',
         max_t: int = 2000,
     ):
         """
@@ -73,30 +77,32 @@ class TennisTrainer(Trainer):
         self.window_len = window_len
         self.scores_ = None
         self.save_root = save_root
+        self.save_dir = Path(save_dir)
         self.max_t = max_t
         self.n_workers = len(self.agents)
 
-    def _report_score(self, i_episode, scores_window, scores, end="") -> None:
+    def _report_score(self, i, s_window, scores, best_score, end="") -> None:
         """
         Report the score
         Parameters
         ----------
-        i_episode  : int
+        i : int
             current episode number
-        scores_window : deque
+        s_window : deque
             latest scores
         end : str
             how to end the print function ('' will repeat the line)
         n : int
             report last the mean of the last n scores for 'latest score'
         """
-        print(
-            f"\rEpisode {i_episode+1:d}"
-            f"\tAverage Score (episode): {np.mean(scores):.4f}",
-            f"\tMax Score (episode): {np.max(scores):.4f}",
-            f"\tAverage Score (deque): {np.mean(scores_window):.4f}",
-            end=end,
+        msg = (
+            f"\rEp {i+1:d}" + 
+            f"\tMean (ep): {np.mean(scores):.4f}" + 
+            f"\tBest (all): {best_score:.4f}"
+            f"\tMean (window): {np.mean(s_window):.4f}"
         )
+        # logger.info(msg)
+        print(msg, end=end)
 
     def _check_solved(self, i_episode, scores_window) -> None:
         if np.mean(scores_window) >= self.solved:
@@ -114,13 +120,14 @@ class TennisTrainer(Trainer):
     def train(self, save_all=False, is_cloud=False):
         if save_all:
             save_root = self._get_save_file(self.save_root)
-            trainer_file = f'trainer-{save_root}.toml'
-            agent_file = f'agent-{save_root}.toml'
+            trainer_file = self.save_dir / f'trainer-{save_root}.toml'
+            agent_file = self.save_dir / f'agent-{save_root}.toml'
             self.save_hyperparameters(trainer_file)
             self.agents[0].save_hyperparameters(agent_file)
         self.env.start()
         scores_episode = []  # list containing scores from each episode
         scores_window = deque(maxlen=self.window_len)
+        best_score = -np.inf
         # init weights
         if len(self.agents) > 1:
             for i in range(1, self.n_workers):
@@ -132,14 +139,16 @@ class TennisTrainer(Trainer):
             (scores_episode, scores_window, scores) = self._run_episode(
                 scores_episode, scores_window
             )
+            if np.max(scores) > best_score:
+                best_score = np.max(scores) 
             self.scores_ = scores_episode
-            self._report_score(i_episode, scores_window, scores)
+            self._report_score(i_episode, scores_window, scores, best_score)
             if (i_episode + 1) % self.SAVE_EVERY == 0:
-                self._report_score(i_episode, scores_window, scores, end="\n")
-                self.agents[0].save(f"{self.save_root}-agent-checkpoint")
-                self.save_scores(f'{self.save_root}-scores-checkpoint.pkl')
+                self._report_score(i_episode, scores_window, scores, best_score, end="\n")
+                self.agents[0].save(self.save_dir / f"{self.save_root}-agent-checkpoint")
+                self.save_scores(self.save_dir / f'{self.save_root}-scores-checkpoint.pkl')
             if self._check_solved(i_episode, scores_window):
-                self.agents[0].save(self._get_save_file(f"{self.save_root}-solved"))
+                self.agents[0].save(self.save_dir / self._get_save_file(f"{self.save_root}-solved"))
                 break
         return scores_episode
 
@@ -163,7 +172,7 @@ class TennisTrainer(Trainer):
             scores += rewards
             if np.any(dones):
                 break
-        score = np.mean(scores)
+        score = np.max(scores)  # Specific to Tennis!
         scores_window.append(score)  # save most recent score
         scores_episode.append(score)  # save most recent score
         return (scores_episode, scores_window, scores)
