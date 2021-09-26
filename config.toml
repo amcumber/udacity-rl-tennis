@@ -38,7 +38,7 @@ TYPE = 'OU'                # ['OU', 'AP'], OU action noise, AP parameter noise
 
     # The following parameters are specific to OU noise
     [OU]
-    SIGMA = 0.1
+    SIGMA = 0.01
     MU = 0.0
     THETA = 0.15
 
