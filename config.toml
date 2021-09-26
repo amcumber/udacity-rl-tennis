@@ -7,38 +7,43 @@ ACTION_SIZE = 2            # Action size for given environment
 UPPER_BOUND = 1.0          # upper bound of action space
 SOLVED = 0.5               # Score to be considered solved for given environment
 ROOT_NAME = 'tennis'       # root name for save files
+SEED = 42                  # random seed
 
 [trainer]
-BATCH_SIZE = 512           # minibatch size
-N_EPISODES = 5000          # max number of episodes to run
+N_EPISODES = 2000          # max number of episodes to run
 MAX_T = 2000               # Max time steps within an episode
 WINDOW_LEN = 100           # window length for averaging
 
+[memory]
+BATCH_SIZE = 256           # minibatch size
+BUFFER_SIZE = 200000       # Replay buffer size
+
 [agent]
 N_AGENTS = 2
-BUFFER_SIZE = 200000       # Replay buffer size
 LEARN_F = 1                # Learning Frequency within episodes
 GAMMA = 0.99               # discount factor
 TAU = 1e-3                 # soft update target parameter
-LR_ACTOR = 1e-3            # learning rate for the actor
-LR_CRITIC = 1e-3           # learning rate for the critic
+LR_ACTOR = 2e-4            # learning rate for the actor
+LR_CRITIC = 2e-4           # learning rate for the critic
 WEIGHT_DECAY = 0.0         # (0.0001) L2 weight decay parameter
 ACTOR_HIDDEN = [64, 64]    # Actor Hidden architecture s -> h1 -> ... -> hn -> a
 CRITIC_HIDDEN = [64, 64]   # Critic s -> h1+a -> ... -> hn -> 1
 ACTOR_ACT = 'relu'         # Actor Activation Function
 CRITIC_ACT = 'leaky_relu'  # Actor Activation Function
-ADD_NOISE = [true, true]  # [false | "OU" | "Stocastic" ] add noise to the agent's action
-SEED = 42                  # random seed
+ADD_NOISE = [true, true]   # [false | "OU" | "Stocastic" ] add noise to the agent's action
 BATCH_NORM = true          # apply batch_normalization for agents
 
 [noise]
 TYPE = 'OU'                # ['OU', 'AP'], OU action noise, AP parameter noise
-# The following parameters are specific to OU noise - comment out if using AP
-SIGMA = 0.01
-MU = 0.0
-THETA = 0.15
 
-# # The following parameters are specific to AP noise - comment out if using OU
-# INITIAL_STD = 0.1
-# DESIRED_ACTION_STD = 0.1
-# ADOPTION_COEF = 1.01
+    # The following parameters are specific to OU noise
+    [OU]
+    SIGMA = 0.1
+    MU = 0.0
+    THETA = 0.15
+
+    # # The following parameters are specific to AP noise
+    [AP]
+    INITIAL_STD = 0.1
+    DESIRED_ACTION_STD = 0.1
+    ADOPTION_COEF = 1.01

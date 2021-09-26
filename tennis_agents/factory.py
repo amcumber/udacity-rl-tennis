@@ -1,21 +1,21 @@
+"""Factories for core classes"""
 from abc import ABC, abstractmethod
 from pathlib import Path
+from tennis_agents.environments import EnvironmentMgr
 from typing import Any, Dict, Tuple
 import logging
 
-import matplotlib.pyplot as plt
-import numpy as np
-import pandas as pd
-import seaborn as sns
 import toml
 import torch
 import torch.nn.functional as F
 
-from tennis_agents.ddpg_agent import DDPGMultiAgent
-from tennis_agents.trainers import TennisTrainer
-from tennis_agents.unity_environments import UnityEnvMgr
-from tennis_agents.replay_buffers import ReplayBuffer
-from tennis_agents.noise_models import AdaptiveParameterNoise, OUActionNoise
+from .ddpg_agent import DDPGAgent
+from .maddpg import MADDPGAgent
+from .trainers import TennisTrainer, Trainer
+from .unity_environments import UnityEnvMgr
+from .replay_buffers import ReplayBuffer
+from .noise_models import AdaptiveParameterNoise, OUActionNoise
+from . import plotting 
 
 
 # logger = logging.getLogger("TennisTrainer")
@@ -33,29 +33,29 @@ class TrainerFactory(ABC):
         """Returns a trainer object complete with environment manager and agents"""
 
 
-class ConfigFileFactory(TrainerFactory):
+class TennisFactory(TrainerFactory):
     @classmethod
-    def get_trainer(cls, data: Dict[str, Any]):
-        """Configure trainer with environment and agents given config file"""
+    def get_environment_manager(cls, data: Dict[str, Any]) -> EnvironmentMgr:
+        ENV_FILE: str = data['environment']['ENV_FILE']
+        return UnityEnvMgr(ENV_FILE)
+
+    @classmethod
+    def get_agent(cls, data: Dict[str, Any]) -> MADDPGAgent:
         # Unpack config
         # # Environment
-        ENV_FILE: str                  = data['environment']['ENV_FILE']
+        # ENV_FILE: str                  = data['environment']['ENV_FILE']
         STATE_SIZE: int                = data['environment']['STATE_SIZE']
         ACTION_SIZE: int               = data['environment']['ACTION_SIZE']
         UPPER_BOUND: float             = data['environment']['UPPER_BOUND']
         SOLVED: float                  = data['environment']['SOLVED']
         ROOT_NAME: str                 = data['environment']['ROOT_NAME']
+        SEED: int                      = data['environment']['SEED']
 
-        # # Trainer
-        Trainer                        = TennisTrainer
-        BATCH_SIZE: int                = data['trainer']['BATCH_SIZE']
-        N_EPISODES: int                = data['trainer']['N_EPISODES']
-        MAX_T: int                     = data['trainer']['MAX_T']
-        WINDOW_LEN: int                = data['trainer']['WINDOW_LEN']
-
+        # # Memory
+        BATCH_SIZE: int                = data['memory']['BATCH_SIZE']
+        BUFFER_SIZE: int               = data['memory']['BUFFER_SIZE']
         # # Agent
         N_AGENTS: int                  = data['agent']['N_AGENTS']
-        BUFFER_SIZE: int               = data['agent']['BUFFER_SIZE']
         LEARN_F: int                   = data['agent']['LEARN_F']
         GAMMA: float                   = data['agent']['GAMMA']
         TAU: float                     = data['agent']['TAU']
@@ -67,32 +67,32 @@ class ConfigFileFactory(TrainerFactory):
         ACTOR_ACT: str                 = data['agent']['ACTOR_ACT']
         CRITIC_ACT: str                = data['agent']['CRITIC_ACT']
         ADD_NOISE: Tuple[bool, bool]   = data['agent']['ADD_NOISE']
-        SEED: int                      = data['agent']['SEED']
         BATCH_NORM: float              = data['agent']['BATCH_NORM']
 
         # # Noise
         NOISE_TYPE = data['noise'].pop('TYPE')
-        NOISE_DATA = {key.lower(): val for key, val in data['noise'].items()}
-
-        envh = UnityEnvMgr(ENV_FILE)
-
-        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-        # logger.debug(f'Device Info:{device}')
-        # logger.debug(f'Config Data: {data}')
-        # torch.device("cpu")
         if NOISE_TYPE == 'OU':
+            NOISE_DATA = {
+                key.lower(): val for key, val in data['OU'].items()
+            }
             NOISE_DATA['action_size'] = ACTION_SIZE
             NOISE_DATA['seed'] = SEED
             noise = OUActionNoise(**NOISE_DATA)
         elif NOISE_TYPE == 'AP':
+            NOISE_DATA = {
+                key.lower(): val for key, val in data['AP'].items()
+            }
             noise = AdaptiveParameterNoise(**NOISE_DATA)
+
+        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
         memory = ReplayBuffer(
             buffer_size = BUFFER_SIZE,
             batch_size = BATCH_SIZE,
             seed = SEED,
             device = device,
         )
-        agents = [DDPGMultiAgent(
+        agents = [DDPGAgent(
             state_size=STATE_SIZE,
             action_size=ACTION_SIZE,
             memory=memory,
@@ -113,8 +113,34 @@ class ConfigFileFactory(TrainerFactory):
             batch_norm=BATCH_NORM,
             noise=noise,
         ) for idx in range(N_AGENTS)]
+        return MADDPGAgent(agents)
+
+
+    @classmethod
+    def get_trainer(
+        cls, data: Dict[str, Any], envh: UnityEnvMgr, magent: MADDPGAgent
+    ) -> TennisTrainer:
+        """Configure trainer with environment and agents given config file"""
+        # Unpack config
+        # # Environment
+        ENV_FILE: str                  = data['environment']['ENV_FILE']
+        STATE_SIZE: int                = data['environment']['STATE_SIZE']
+        ACTION_SIZE: int               = data['environment']['ACTION_SIZE']
+        UPPER_BOUND: float             = data['environment']['UPPER_BOUND']
+        SOLVED: float                  = data['environment']['SOLVED']
+        ROOT_NAME: str                 = data['environment']['ROOT_NAME']
+
+        # # Trainer
+        Trainer                        = TennisTrainer
+        N_EPISODES: int                = data['trainer']['N_EPISODES']
+        MAX_T: int                     = data['trainer']['MAX_T']
+        WINDOW_LEN: int                = data['trainer']['WINDOW_LEN']
+
+        # logger.debug(f'Device Info:{device}')
+        # logger.debug(f'Config Data: {data}')
+        # torch.device("cpu")
         trainer = Trainer(
-            agents=agents,
+            magent=magent,
             env=envh,
             n_episodes=N_EPISODES,
             max_t=MAX_T,
@@ -129,42 +155,10 @@ class ConfigFileFactory(TrainerFactory):
         """Get function from torch.nn.funtional module"""
         return getattr(F, func_name)
 
-def plot_scores(scores, i_map=0):
-    sns.set_style('darkgrid')
-    sns.set_context('talk')
-    sns.set_palette('Paired')
-    cmap = sns.color_palette('Paired')
+    def __call__(self, config: str) -> Trainer:
+        """Reuturn Complete Trainer given configuration"""
+        data = self.read_toml(config)
 
-    scores = np.array(scores).squeeze()
-    score_df = pd.DataFrame({'scores': scores})
-    score_df = score_df.assign(mean=lambda df: df.rolling(10).mean()['scores'])
-
-    _ ,ax = plt.subplots(1,1, figsize=(10,8))
-
-    ax = score_df.plot(ax=ax, color=cmap[2*(i_map%4):])
-    ax.set_title('DDPG Scores vs Time for Tennis')
-    ax.set_xlabel('Episode #')
-    ax.set_ylabel('Score')
-    plt.show()
-
-
-def config_main(file:str) -> None:
-    """
-    Main Function that will load configuration from file, train, and plot the
-    resulting scores
-    """
-    factory = ConfigFileFactory()
-    data = factory.read_toml(file)
-    trainer = factory.get_trainer(data)
-    scores = trainer.train()
-    plot_scores(scores)
-
-
-if __name__ == "__main__":
-    import argparse
-    p = argparse.ArgumentParser(description='Run Tennis from terminal')
-    p.add_argument('config', help='Configuration File - toml')
-    args = p.parse_args()
-
-    config_main(args.config)
-
+        envh = self.get_environment_manager(data)
+        maddpg = self.get_agent(data)
+        return self.get_trainer(data, envh, maddpg)

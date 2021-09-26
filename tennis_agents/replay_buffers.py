@@ -7,6 +7,7 @@ from typing import Tuple
 import numpy as np
 import torch
 import torch.nn as nn
+from torch import Tensor
 import torch.nn.functional as F
 import torch.optim as optim
 
@@ -21,10 +22,12 @@ class Buffer(ABC):
         pass
 
     @abstractmethod
-    def sample(self) -> Tuple["states", "actions", "rewards", "next_states", "dones"]:
+    def sample(self) -> Tuple[Tensor, Tensor, Tensor, Tensor, Tensor]:
         """
         Retrieve random tuple contining state, action, reward, next_state, and
         done information
+        Returns:
+            Tuple["states", "actions", "rewards", "next_states", "dones"]
         """
         pass
 
@@ -70,7 +73,7 @@ class ReplayBuffer(Buffer):
         e = self.experience(state, action, reward, next_state, done)
         self.memory.append(e)
 
-    def sample(self):
+    def sample(self) -> Tuple[Tensor, Tensor, Tensor, Tensor, Tensor]:
         """Randomly sample a batch of experiences from memory."""
         experiences = random.sample(self.memory, k=self.batch_size)
 

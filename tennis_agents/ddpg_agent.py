@@ -17,13 +17,13 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 
-from .agents import Agent, MultiAgent
+from .agents import Agent
 from .ddpg_model import DDPGActor, DDPGCritic
 from .noise_models import Noise
 from .replay_buffers import ReplayBuffer
 
 
-class DDPGMultiAgent(Agent):
+class DDPGAgent(Agent):
     """
     DDPG Multi agent implementation - Recieves memories from trainer
     Interacts with and learns from the environment.
@@ -161,6 +161,9 @@ class DDPGMultiAgent(Agent):
             lr=lr_critic,
             weight_decay=weight_decay,
         )
+
+        self.actor_target.load_state_dict(self.actor_local.state_dict())
+        self.critic_target.load_state_dict(self.critic_local.state_dict())
 
     def reset(self):
         if self.add_noise:

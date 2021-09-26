@@ -4,12 +4,13 @@ from collections import deque
 from datetime import datetime
 from pathlib import Path
 from typing import Tuple
+
 # import logging
 
 import numpy as np
 import toml
 
-from .agents import Agent
+from .agents import MultiAgent
 from .environments import EnvironmentMgr
 from .workspace_utils import keep_awake
 
@@ -27,17 +28,17 @@ class Trainer(ABC):
 
 
 class TennisTrainer(Trainer):
-    SAVE_EVERY = 50
+    SAVE_EVERY = 100
 
     def __init__(
         self,
-        agents: Tuple[Agent, Agent],
+        magent: MultiAgent,
         env: EnvironmentMgr,
         n_episodes: int,
         window_len: int,
         solved: float,
         save_root: str = "checkpoint",
-        save_dir: str = 'runs',
+        save_dir: str = "runs",
         max_t: int = 2000,
     ):
         """
@@ -45,8 +46,8 @@ class TennisTrainer(Trainer):
 
         Parameters
         ----------
-        agent : Agent
-            agent to act upon
+        magent : MultiAgent
+            multi-agent to act upon
         env : UnityEnvironmentMgr
             environment manager containing enter and exit methods to call
             UnityEnvironment
@@ -70,7 +71,7 @@ class TennisTrainer(Trainer):
                   project as well as reviewing recommendations on the Mentor
                   help forums - Udacity's Deep Reinforcement Learning Course
         """
-        self.agents = agents
+        self.magent = magent
         self.env = env
         self.n_episodes = n_episodes
         self.solved = solved
@@ -79,7 +80,7 @@ class TennisTrainer(Trainer):
         self.save_root = save_root
         self.save_dir = Path(save_dir)
         self.max_t = max_t
-        self.n_workers = len(self.agents)
+        self.n_workers = len(self.magent)
 
     def _report_score(self, i, s_window, scores, best_score, end="") -> None:
         """
@@ -96,9 +97,9 @@ class TennisTrainer(Trainer):
             report last the mean of the last n scores for 'latest score'
         """
         msg = (
-            f"\rEp {i+1:d}" + 
-            f"\tMean (ep): {np.mean(scores):.4f}" + 
-            f"\tBest (all): {best_score:.4f}"
+            f"\rEp {i+1:d}"
+            + f"\tMean (ep): {np.mean(scores):.4f}"
+            + f"\tBest (all): {best_score:.4f}"
             f"\tMean (window): {np.mean(s_window):.4f}"
         )
         # logger.info(msg)
@@ -117,91 +118,73 @@ class TennisTrainer(Trainer):
         now = datetime.now()
         return f'{root}-{now.strftime("%Y%m%dT%H%M%S")}'
 
-    def train(self, save_all=False, is_cloud=False):
-        if save_all:
-            save_root = self._get_save_file(self.save_root)
-            trainer_file = self.save_dir / f'trainer-{save_root}.toml'
-            agent_file = self.save_dir / f'agent-{save_root}.toml'
-            self.save_hyperparameters(trainer_file)
-            self.agents[0].save_hyperparameters(agent_file)
+    def save(self):
+        save_root = self._get_save_file(self.save_root)
+        trainer_file = self.save_dir / f"trainer-{save_root}.toml"
+        agent_file = self.save_dir / f"agent-{save_root}.toml"
+        self.save_hyperparameters(trainer_file)
+
+    def train(self):
         self.env.start()
-        scores_episode = []  # list containing scores from each episode
+        scores = []  # list containing scores from each episode
         scores_window = deque(maxlen=self.window_len)
         best_score = -np.inf
-        # init weights
-        if len(self.agents) > 1:
-            for i in range(1, self.n_workers):
-                self.agents[i].copy_from(self.agents[0])
-        rng = range(self.n_episodes)
-        if is_cloud:
-            rng = keep_awake(rng)
-        for i_episode in rng:
-            (scores_episode, scores_window, scores) = self._run_episode(
-                scores_episode, scores_window
-            )
-            if np.max(scores) > best_score:
-                best_score = np.max(scores) 
-            self.scores_ = scores_episode
+        for i_episode in range(self.n_episodes):
+            (scores, scores_window, indiv_score) = self._run_episode(scores, scores_window)
+            if indiv_score > best_score:
+                best_score = indiv_score
+            self.scores_ = scores
             self._report_score(i_episode, scores_window, scores, best_score)
             if (i_episode + 1) % self.SAVE_EVERY == 0:
-                self._report_score(i_episode, scores_window, scores, best_score, end="\n")
-                self.agents[0].save(self.save_dir / f"{self.save_root}-agent-checkpoint")
-                self.save_scores(self.save_dir / f'{self.save_root}-scores-checkpoint.pkl')
+                self._report_score(
+                    i_episode, scores_window, scores, best_score, end="\n"
+                )
+                self.magent.save(self.save_dir / f"{self.save_root}-agent-checkpoint")
+                self.save_scores(
+                    self.save_dir / f"{self.save_root}-scores-checkpoint.pkl"
+                )
             if self._check_solved(i_episode, scores_window):
-                self.agents[0].save(self.save_dir / self._get_save_file(f"{self.save_root}-solved"))
+                self.magent.save(
+                    self.save_dir / self._get_save_file(f"{self.save_root}-solved")
+                )
                 break
-        return scores_episode
+        return scores
 
     def _run_episode(
-        self, scores_episode, scores_window, render=False
+        self, scores, scores_window, render=False
     ) -> Tuple[list, deque, float]:
         """Run an episode of the training sequence"""
         states = self.env.reset()
-        for agent in self.agents:
-            agent.reset()
-        scores = np.zeros(self.n_workers)
+        self.magent.reset()
+        score = np.zeros(len(self.magent))
         for _ in range(self.max_t):
             if render:
                 self.env.render()
-            actions = [
-                agent.act(state) for agent, state in zip(self.agents, states)
-            ]
+            actions = self.magent.act(states)
             next_states, rewards, dones, _ = self.env.step(actions)
-            self._step_agents(states, actions, rewards, next_states, dones)
+            self.magent.step(states, actions, rewards, next_states, dones)
             states = next_states
-            scores += rewards
+            score += rewards
             if np.any(dones):
                 break
-        score = np.max(scores)  # Specific to Tennis!
+        score = np.max(score)  # Specific to Tennis!
         scores_window.append(score)  # save most recent score
-        scores_episode.append(score)  # save most recent score
-        return (scores_episode, scores_window, scores)
-
-    def _step_agents(self, states, actions, rewards, next_states, dones):
-        """
-        Step Agents depending on number of workers
-
-        CITATION: the algorithm for implementing the learn_every // update_every
-                  was derived from recommendations for the continuous control
-                  project as well as reviewing recommendations on the Mentor
-                  help forums - Udacity's Deep Reinforcement Learning Course
-        """
-        for agent, state, action, reward, next_state, done in zip(
-            self.agents, states, actions, rewards, next_states, dones
-        ):
-            agent.step(state, action, reward, next_state, done)
+        scores.append(score)  # save most recent score
+        return (scores, scores_window, score)
 
     def eval(self, n_episodes=3, render=False):
         ## scores_window
-        scores_episode = []
+        scores = []
         scores_window = deque(maxlen=self.window_len)
         for i in range(n_episodes):
-            (scores_episode, scores_window) = self._run_episode(
-                scores_episode, scores_window, render=render
+            (scores, scores_window) = self._run_episode(
+                scores, scores_window, render=render
             )
-            self.scores_ = scores_episode
-            print(f"\rEpisode {i+1}\tFinal Score: {np.mean(scores_episode):.2f}", end="")
-        return scores_episode
+            self.scores_ = scores
+            print(
+                f"\rEpisode {i+1}\tFinal Score: {np.mean(scores):.2f}", end=""
+            )
+        return scores
 
     def save_hyperparameters(self, file: str) -> None:
         """
@@ -219,7 +202,7 @@ class TennisTrainer(Trainer):
 
     def read_scores(self, file: str) -> list:
         """Read Scores from pickle file
-        
+
         NOTE: DO NOT LOAD pickle files generated from a source you do not trust!
         """
         with Path(file).open("rb") as fh:
