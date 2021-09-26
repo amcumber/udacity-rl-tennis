@@ -10,7 +10,7 @@ ROOT_NAME = 'tennis'       # root name for save files
 SEED = 42                  # random seed
 
 [trainer]
-N_EPISODES = 3000          # max number of episodes to run
+N_EPISODES = 2500          # max number of episodes to run
 MAX_T = 2000               # Max time steps within an episode
 WINDOW_LEN = 100           # window length for averaging
 
@@ -23,14 +23,14 @@ N_AGENTS = 2
 LEARN_F = 1                # Learning Frequency within episodes
 GAMMA = 0.99               # discount factor
 TAU = 1e-3                 # soft update target parameter
-LR_ACTOR = 6e-4            # learning rate for the actor
-LR_CRITIC = 6e-4           # learning rate for the critic
+LR_ACTOR = 1e-3            # learning rate for the actor
+LR_CRITIC = 1e-3           # learning rate for the critic
 WEIGHT_DECAY = 1e-6        # (0.0001) L2 weight decay parameter
 ACTOR_HIDDEN = [128, 128]  # Actor Hidden architecture s -> h1 -> ... -> hn -> a
 CRITIC_HIDDEN = [128, 128] # Critic s -> h1+a -> ... -> hn -> 1
 ACTOR_ACT = 'relu'         # Actor Activation Function
 CRITIC_ACT = 'leaky_relu'  # Actor Activation Function
-ADD_NOISE = [true, true]   # [false | "OU" | "Stocastic" ] add noise to the agent's action
+ADD_NOISE = [true, true]   # add noise to the agent's action
 BATCH_NORM = true          # apply batch_normalization for agents
 
 [noise]
