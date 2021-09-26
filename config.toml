@@ -25,7 +25,7 @@ GAMMA = 0.99               # discount factor
 TAU = 1e-3                 # soft update target parameter
 LR_ACTOR = 1e-4            # learning rate for the actor
 LR_CRITIC = 1e-4           # learning rate for the critic
-WEIGHT_DECAY = 0.0         # (0.0001) L2 weight decay parameter
+WEIGHT_DECAY = 1e-6        # (0.0001) L2 weight decay parameter
 ACTOR_HIDDEN = [128, 128]  # Actor Hidden architecture s -> h1 -> ... -> hn -> a
 CRITIC_HIDDEN = [128, 128] # Critic s -> h1+a -> ... -> hn -> 1
 ACTOR_ACT = 'relu'         # Actor Activation Function
@@ -38,7 +38,7 @@ TYPE = 'OU'                # ['OU', 'AP'], OU action noise, AP parameter noise
 
 # The following parameters are specific to OU noise
 [OU]
-SIGMA = 0.1
+SIGMA = 0.01
 MU = 0.0
 THETA = 0.15
 
