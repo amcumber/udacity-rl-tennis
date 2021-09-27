@@ -7,7 +7,7 @@ ACTION_SIZE = 2            # Action size for given environment
 UPPER_BOUND = 1.0          # upper bound of action space
 SOLVED = 0.5               # Score to be considered solved for given environment
 ROOT_NAME = 'tennis'       # root name for save files
-SEED = 42                  # random seed
+SEED = 123456              # random seed
 
 [trainer]
 N_EPISODES = 2500          # max number of episodes to run
@@ -26,12 +26,12 @@ TAU = 1e-3                 # soft update target parameter
 LR_ACTOR = 1e-3            # learning rate for the actor
 LR_CRITIC = 1e-3           # learning rate for the critic
 WEIGHT_DECAY = 1e-6        # (0.0001) L2 weight decay parameter
-ACTOR_HIDDEN = [64, 64]  # Actor Hidden architecture s -> h1 -> ... -> hn -> a
-CRITIC_HIDDEN = [64, 64] # Critic s -> h1+a -> ... -> hn -> 1
+ACTOR_HIDDEN = [64, 64]    # Actor Hidden architecture s -> h1 -> ... -> hn -> a
+CRITIC_HIDDEN = [64, 64]   # Critic s -> h1+a -> ... -> hn -> 1
 ACTOR_ACT = 'relu'         # Actor Activation Function
 CRITIC_ACT = 'leaky_relu'  # Actor Activation Function
 ADD_NOISE = [true, true]   # add noise to the agent's action
-NOISE_DECAY = 0.99         # Noise decay parameter
+NOISE_DECAY = 1.00         # Noise decay parameter
 BATCH_NORM = true          # apply batch_normalization for agents
 
 [noise]

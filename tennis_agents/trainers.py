@@ -135,17 +135,11 @@ class TennisTrainer(Trainer):
             self.scores_ = scores
             self._report_score(i_episode, scores_window, best_score)
             if (i_episode + 1) % self.SAVE_EVERY == 0:
-                self._report_score(
-                    i_episode, scores_window, best_score, end="\n"
-                )
+                self._report_score( i_episode, scores_window, best_score, end="\n")
                 self.magent.save(self.save_dir / f"{self.save_root}-agent-checkpoint")
-                self.save_scores(
-                    self.save_dir / f"{self.save_root}-scores-checkpoint.pkl"
-                )
+                self.save_scores( self.save_dir / f"{self.save_root}-scores-checkpoint.pkl")
             if self._check_solved(i_episode, scores_window):
-                self.magent.save(
-                    self.save_dir / self._get_save_file(f"{self.save_root}-solved")
-                )
+                self.magent.save( self.save_dir / self._get_save_file(f"{self.save_root}-solved"))
                 break
         return scores
 
@@ -170,12 +164,12 @@ class TennisTrainer(Trainer):
         scores_window.append(score)  # save most recent score
         scores.append(score)  # save most recent score
         idx = np.array(score).argmax()
-        best_agent = self.magent.agents[idx]
-        for i, agent in enumerate(self.magent.agents):
-            if i == idx:
-                pass
-            agent.copy_from(best_agent)
-        self.magent.cleanup()
+        # best_agent = self.magent.agents[idx]
+        # for i, agent in enumerate(self.magent.agents):
+        #     if i == idx:
+        #         pass
+        #     agent.copy_from(best_agent)
+        # self.magent.cleanup()
         return (scores, scores_window, score)
 
     def eval(self, n_episodes=3, render=False):
