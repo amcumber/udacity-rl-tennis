@@ -73,6 +73,45 @@ class OUActionNoise(ActionNoise):
     def __call__(self):
         return self.sample()
 
+class OUActionNoiseV2(ActionNoise):
+    """
+    Ornstein-Uhlenbeck process applied to action space
+    CITATION : https://github.com/l5shi/Multi-DDPG-with-parameter-noise/blob/master/Multi_DDPG_with_parameter_noise.ipynb
+    """
+
+    def __init__(
+        self,
+        action_size: int,
+        seed: int,
+        mu: float = 0.0,
+        sigma: float = 0.05,
+        theta: float = 0.25,
+    ):
+        """Initialize parameters and noise process."""
+        self.mu = mu * np.zeros(action_size)
+        self.dt = action_size
+        self.theta = theta
+        self.sigma = sigma
+        self.seed = random.seed(seed)
+        self.reset()
+
+    def reset(self):
+        """Reset the internal state (= noise) to mean (mu)."""
+        self.x_prev = np.zeros_like(self.mu)
+
+    def sample(self):
+        """Update internal state and return it as a noise sample."""
+        # CITATION corrected by : https://github.com/l5shi/Multi-DDPG-with-parameter-noise/blob/master/Multi_DDPG_with_parameter_noise.ipynb
+        x = self.x_prev
+        dx = self.theta * (self.mu - x) * self.dt + self.sigma * np.sqrt(
+            self.dt
+        ) * np.random.normal(size=self.mu.shape)
+        self.x_prev = x + dx
+        return self.x_prev
+
+    def __call__(self):
+        return self.sample()
+
 
 # CITATION: from openAI baselines:
 # https://github.com/openai/baselines/blob/master/baselines/ddpg/noise.py
