@@ -45,12 +45,11 @@ class OUActionNoise(ActionNoise):
         action_size: int,
         seed: int,
         mu: float = 0.0,
-        sigma: float = 0.05,
-        theta: float = 0.25,
+        theta: float = 0.15,
+        sigma: float = 0.2,
     ):
         """Initialize parameters and noise process."""
-        self.mu = mu * np.zeros(action_size)
-        self.dt = action_size
+        self.mu = mu * np.ones(action_size)
         self.theta = theta
         self.sigma = sigma
         self.seed = random.seed(seed)
@@ -58,20 +57,20 @@ class OUActionNoise(ActionNoise):
 
     def reset(self):
         """Reset the internal state (= noise) to mean (mu)."""
-        self.x_prev = np.zeros_like(self.mu)
+        self.state = copy.copy(self.mu)
 
     def sample(self):
         """Update internal state and return it as a noise sample."""
-        # CITATION corrected by : https://github.com/l5shi/Multi-DDPG-with-parameter-noise/blob/master/Multi_DDPG_with_parameter_noise.ipynb
-        x = self.x_prev
-        dx = self.theta * (self.mu - x) * self.dt + self.sigma * np.sqrt(
-            self.dt
-        ) * np.random.normal(size=self.mu.shape)
-        self.x_prev = x + dx
-        return self.x_prev
+        x = self.state
+        dx = self.theta * (self.mu - x) + self.sigma * np.array(
+            [random.random() for i in range(len(x))]
+        )
+        self.state = x + dx
+        return self.state
 
     def __call__(self):
         return self.sample()
+
 
 class OUActionNoiseV2(ActionNoise):
     """
