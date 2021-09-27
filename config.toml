@@ -20,22 +20,22 @@ BUFFER_SIZE = 1000000       # Replay buffer size
 
 [agent]
 N_AGENTS = 2
-LEARN_F = 5                # Learning Frequency within episodes
+LEARN_F = 1                # Learning Frequency within episodes
 GAMMA = 0.99               # discount factor
 TAU = 1e-3                 # soft update target parameter
 LR_ACTOR = 1e-3            # learning rate for the actor
 LR_CRITIC = 1e-3           # learning rate for the critic
-WEIGHT_DECAY = 0.0         # (0.0001) L2 weight decay parameter
-ACTOR_HIDDEN = [32, 32]  # Actor Hidden architecture s -> h1 -> ... -> hn -> a
-CRITIC_HIDDEN = [32, 32] # Critic s -> h1+a -> ... -> hn -> 1
+WEIGHT_DECAY = 1e-6        # (0.0001) L2 weight decay parameter
+ACTOR_HIDDEN = [64, 64]  # Actor Hidden architecture s -> h1 -> ... -> hn -> a
+CRITIC_HIDDEN = [64, 64] # Critic s -> h1+a -> ... -> hn -> 1
 ACTOR_ACT = 'relu'         # Actor Activation Function
-CRITIC_ACT = 'relu'  # Actor Activation Function
+CRITIC_ACT = 'leaky_relu'  # Actor Activation Function
 ADD_NOISE = [true, true]   # add noise to the agent's action
 NOISE_DECAY = 0.99         # Noise decay parameter
 BATCH_NORM = true          # apply batch_normalization for agents
 
 [noise]
-TYPE = 'AP'                # ['OU', 'AP', 'BOTH'], OU action noise, AP parameter noise
+TYPE = 'OU'                # ['OU', 'AP', 'BOTH'], OU action noise, AP parameter noise
 
 # The following parameters are specific to OU noise
 [OU]
