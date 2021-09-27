@@ -13,7 +13,7 @@ from typing import Tuple
 import numpy as np
 
 
-class Noise(ABC):
+class ActionNoise(ABC):
     @abstractmethod
     def reset(self):
         ...
@@ -23,7 +23,21 @@ class Noise(ABC):
         ...
 
 
-class OUActionNoise(Noise):
+class ParamNoise(ABC):
+    @abstractmethod
+    def adapt(self):
+        ...
+
+    @abstractmethod
+    def get_stats(self):
+        ...
+
+    @abstractmethod
+    def reset(self):
+        ...
+
+
+class OUActionNoise(ActionNoise):
     """Ornstein-Uhlenbeck process applied to action space"""
 
     def __init__(
@@ -31,11 +45,12 @@ class OUActionNoise(Noise):
         action_size: int,
         seed: int,
         mu: float = 0.0,
-        theta: float = 0.15,
-        sigma: float = 0.2,
+        sigma: float = 0.05,
+        theta: float = 0.25,
     ):
         """Initialize parameters and noise process."""
-        self.mu = mu * np.ones(action_size)
+        self.mu = mu * np.zeros(action_size)
+        self.dt = action_size
         self.theta = theta
         self.sigma = sigma
         self.seed = random.seed(seed)
@@ -43,16 +58,17 @@ class OUActionNoise(Noise):
 
     def reset(self):
         """Reset the internal state (= noise) to mean (mu)."""
-        self.state = copy.copy(self.mu)
+        self.x_prev = np.zeros_like(self.mu)
 
     def sample(self):
         """Update internal state and return it as a noise sample."""
-        x = self.state
-        dx = self.theta * (self.mu - x) + self.sigma * np.array(
-            [random.random() for i in range(len(x))]
-        )
-        self.state = x + dx
-        return self.state
+        # CITATION corrected by : https://github.com/l5shi/Multi-DDPG-with-parameter-noise/blob/master/Multi_DDPG_with_parameter_noise.ipynb
+        x = self.x_prev
+        dx = self.theta * (self.mu - x) * self.dt + self.sigma * np.sqrt(
+            self.dt
+        ) * np.random.normal(size=self.mu.shape)
+        self.x_prev = x + dx
+        return self.x_prev
 
     def __call__(self):
         return self.sample()
@@ -63,6 +79,10 @@ class OUActionNoise(Noise):
 # Related article:
 # https://openai.com/blog/better-exploration-with-parameter-noise/
 # and related Paper: https://arxiv.org/abs/1706.01905
+# Additional help from disccusion found here:
+# https://pythonrepo.com/repo/ikostrikov-pytorch-naf-python-deep-learning
+# and here
+# https://github.com/l5shi/Multi-DDPG-with-parameter-noise/blob/master/Multi_DDPG_with_parameter_noise.ipynb
 class AdaptiveParameterNoise:
     """
     Adaptive Parameter Noise Class from OpenAI baselines
@@ -74,10 +94,12 @@ class AdaptiveParameterNoise:
     desired_action_std: float (0.1)
         Desired Action standard deviation parameter
     adoption_coef: float (1.01)
-        Adoption Coeffcient, used to adjust the current std-deviation - must be 
+        Adoption Coeffcient, used to adjust the current std-deviation - must be
         > 1.00
     """
-    def __init__(self,
+
+    def __init__(
+        self,
         initial_std: float = 0.1,
         desired_action_std: float = 0.1,
         adoption_coef: float = 1.01,
@@ -86,13 +108,13 @@ class AdaptiveParameterNoise:
         self.desired_action_std = desired_action_std
         self.adoption_coef = adoption_coef
 
-
-    def __post_init__(self):
         self.reset()
 
         if self.adoption_coef < 1.0:
-            msg = (f"adoption_coef must be >1.0, adoption_coef set to: " + 
-                   f"{self.adoption_coef}")
+            msg = (
+                f"adoption_coef must be >1.0, adoption_coef set to: "
+                + f"{self.adoption_coef}"
+            )
             raise ValueError(msg)
 
     def adapt(self, distance):
@@ -106,28 +128,8 @@ class AdaptiveParameterNoise:
 
     def get_stats(self):
         """Get statistics from parameter noise standard deviation"""
-        stats = {
-            'param_noise_stddev': self.current_std
-        }
+        stats = {"param_noise_stddev": self.current_std}
         return stats
 
     def reset(self):
         self.current_std = self.initial_std
-
-# def get_perturbed_actor_updates(actor, perturbed_actor, param_noise_stddev):
-#     # CITATION: https://github.com/openai/baselines/blob/master/baselines/ddpg/ddpg_learner.py
-#     assert len(actor.vars) == len(perturbed_actor.vars)
-#     assert len(actor.perturbable_vars) == len(perturbed_actor.perturbable_vars)
-
-#     updates = []
-#     for var, perturbed_var in zip(actor.vars, perturbed_actor.vars):
-#         if var in actor.perturbable_vars:
-#             logger.info('  {} <- {} + noise'.format(perturbed_var.name, var.name))
-#             updates.append(tf.assign(perturbed_var, var + tf.random_normal(tf.shape(var), mean=0., stddev=param_noise_stddev)))
-#         else:
-#             logger.info('  {} <- {}'.format(perturbed_var.name, var.name))
-#             updates.append(tf.assign(perturbed_var, var))
-#     assert len(updates) == len(actor.vars)
-#     return tf.group(*updates)
-
-

@@ -15,7 +15,6 @@ from .trainers import TennisTrainer, Trainer
 from .unity_environments import UnityEnvMgr
 from .replay_buffers import ReplayBuffer
 from .noise_models import AdaptiveParameterNoise, OUActionNoise
-from . import plotting 
 
 
 # logger = logging.getLogger("TennisTrainer")
@@ -47,13 +46,14 @@ class TennisFactory(TrainerFactory):
         STATE_SIZE: int                = data['environment']['STATE_SIZE']
         ACTION_SIZE: int               = data['environment']['ACTION_SIZE']
         UPPER_BOUND: float             = data['environment']['UPPER_BOUND']
-        SOLVED: float                  = data['environment']['SOLVED']
-        ROOT_NAME: str                 = data['environment']['ROOT_NAME']
+        # SOLVED: float                  = data['environment']['SOLVED']
+        # ROOT_NAME: str                 = data['environment']['ROOT_NAME']
         SEED: int                      = data['environment']['SEED']
 
         # # Memory
         BATCH_SIZE: int                = data['memory']['BATCH_SIZE']
         BUFFER_SIZE: int               = data['memory']['BUFFER_SIZE']
+
         # # Agent
         N_AGENTS: int                  = data['agent']['N_AGENTS']
         LEARN_F: int                   = data['agent']['LEARN_F']
@@ -68,21 +68,25 @@ class TennisFactory(TrainerFactory):
         CRITIC_ACT: str                = data['agent']['CRITIC_ACT']
         ADD_NOISE: Tuple[bool, bool]   = data['agent']['ADD_NOISE']
         BATCH_NORM: float              = data['agent']['BATCH_NORM']
+        NOISE_DECAY: float             = data['agent']['NOISE_DECAY']
 
         # # Noise
-        NOISE_TYPE = data['noise'].pop('TYPE')
-        if NOISE_TYPE == 'OU':
-            NOISE_DATA = {
+        NOISE_TYPE: str                = data['noise'].pop('TYPE').upper()
+
+        action_noise = None
+        param_noise = None
+        if NOISE_TYPE == 'OU' or NOISE_TYPE == 'BOTH':
+            action_noise_data = {
                 key.lower(): val for key, val in data['OU'].items()
             }
-            NOISE_DATA['action_size'] = ACTION_SIZE
-            NOISE_DATA['seed'] = SEED
-            noise = OUActionNoise(**NOISE_DATA)
-        elif NOISE_TYPE == 'AP':
-            NOISE_DATA = {
+            action_noise_data['action_size'] = ACTION_SIZE
+            action_noise_data['seed'] = SEED
+            action_noise = OUActionNoise(**action_noise_data)
+        if NOISE_TYPE == 'AP' or NOISE_TYPE == 'BOTH':
+            param_noise_data = {
                 key.lower(): val for key, val in data['AP'].items()
             }
-            noise = AdaptiveParameterNoise(**NOISE_DATA)
+            param_noise = AdaptiveParameterNoise(**param_noise_data)
 
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -109,9 +113,11 @@ class TennisFactory(TrainerFactory):
             critic_hidden=CRITIC_HIDDEN,
             actor_act=cls.get_function(ACTOR_ACT),
             critic_act=cls.get_function(CRITIC_ACT),
-            add_noise=ADD_NOISE[idx],
             batch_norm=BATCH_NORM,
-            noise=noise,
+            add_noise=ADD_NOISE[idx],
+            action_noise=action_noise,
+            noise_decay=NOISE_DECAY,
+            param_noise=param_noise,
         ) for idx in range(N_AGENTS)]
         return MADDPGAgent(agents)
 
@@ -123,10 +129,10 @@ class TennisFactory(TrainerFactory):
         """Configure trainer with environment and agents given config file"""
         # Unpack config
         # # Environment
-        ENV_FILE: str                  = data['environment']['ENV_FILE']
-        STATE_SIZE: int                = data['environment']['STATE_SIZE']
-        ACTION_SIZE: int               = data['environment']['ACTION_SIZE']
-        UPPER_BOUND: float             = data['environment']['UPPER_BOUND']
+        # ENV_FILE: str                  = data['environment']['ENV_FILE']
+        # STATE_SIZE: int                = data['environment']['STATE_SIZE']
+        # ACTION_SIZE: int               = data['environment']['ACTION_SIZE']
+        # UPPER_BOUND: float             = data['environment']['UPPER_BOUND']
         SOLVED: float                  = data['environment']['SOLVED']
         ROOT_NAME: str                 = data['environment']['ROOT_NAME']
 

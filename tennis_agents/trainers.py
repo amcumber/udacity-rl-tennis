@@ -98,7 +98,6 @@ class TennisTrainer(Trainer):
         """
         msg = (
             f"\rEp {i+1:d}"
-            + f"\tMean (l10): {np.mean(s_window[-10:]):.4f}"
             + f"\tBest (all): {best_score:.4f}"
             f"\tMean (window): {np.mean(s_window):.4f}"
         )
@@ -170,12 +169,21 @@ class TennisTrainer(Trainer):
         score = np.max(score)  # Specific to Tennis!
         scores_window.append(score)  # save most recent score
         scores.append(score)  # save most recent score
+        idx = np.array(score).argmax()
+        best_agent = self.magent.agents[idx]
+        for i, agent in enumerate(self.magent.agents):
+            if i == idx:
+                pass
+            agent.copy_from(best_agent)
+        self.magent.cleanup()
         return (scores, scores_window, score)
 
     def eval(self, n_episodes=3, render=False):
         ## scores_window
         scores = []
         scores_window = deque(maxlen=self.window_len)
+        for agent in self.magent.agents:
+            agent.add_noise = False
         for i in range(n_episodes):
             (scores, scores_window) = self._run_episode(
                 scores, scores_window, render=render
