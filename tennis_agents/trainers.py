@@ -12,9 +12,6 @@ import toml
 
 from .agents import MultiAgent
 from .environments import EnvironmentMgr
-from .workspace_utils import keep_awake
-
-# logger = logging.getLogger('TennisTrainer')
 
 
 class Trainer(ABC):
@@ -82,7 +79,7 @@ class TennisTrainer(Trainer):
         self.max_t = max_t
         self.n_workers = len(self.magent)
 
-    def _report_score(self, i, s_window, best_score, end="") -> None:
+    def _report_score(self, i, s_window, best_score, agent_scores, end="") -> None:
         """
         Report the score
         Parameters
@@ -96,12 +93,13 @@ class TennisTrainer(Trainer):
         n : int
             report last the mean of the last n scores for 'latest score'
         """
+        current = "['{:.4f}','{:.2f}]".format([x for x in agent_scores])
         msg = (
-            f"\rEp {i+1:d}"
+            f"\rEp {i+1:d}:"
             + f"\tBest (all): {best_score:.4f}"
+            + f"\tCurrent: {current}"
             f"\tMean (window): {np.mean(s_window):.4f}"
         )
-        # logger.info(msg)
         print(msg, end=end)
 
     def _check_solved(self, i_episode, scores_window) -> None:
@@ -129,17 +127,25 @@ class TennisTrainer(Trainer):
         scores_window = deque(maxlen=self.window_len)
         best_score = -np.inf
         for i_episode in range(self.n_episodes):
-            (scores, scores_window, indiv_scores) = self._run_episode(scores, scores_window)
-            if any(indiv_scores > best_score):
-                best_score = np.max(indiv_scores)
+            (scores, scores_window, agent_scores) = self._run_episode(
+                scores, scores_window
+            )
+            if any(agent_scores > best_score):
+                best_score = np.max(agent_scores)
             self.scores_ = scores
-            self._report_score(i_episode, scores_window, best_score)
+            self._report_score(i_episode, scores_window, best_score, agent_scores)
             if (i_episode + 1) % self.SAVE_EVERY == 0:
-                self._report_score( i_episode, scores_window, best_score, end="\n")
+                self._report_score(
+                    i_episode, scores_window, best_score, agent_scores, end="\n"
+                )
                 self.magent.save(self.save_dir / f"{self.save_root}-agent-checkpoint")
-                self.save_scores( self.save_dir / f"{self.save_root}-scores-checkpoint.pkl")
+                self.save_scores(
+                    self.save_dir / f"{self.save_root}-scores-checkpoint.pkl"
+                )
             if self._check_solved(i_episode, scores_window):
-                self.magent.save( self.save_dir / self._get_save_file(f"{self.save_root}-solved"))
+                self.magent.save(
+                    self.save_dir / self._get_save_file(f"{self.save_root}-solved")
+                )
                 break
         return scores
 
@@ -183,9 +189,7 @@ class TennisTrainer(Trainer):
                 scores, scores_window, render=render
             )
             self.scores_ = scores
-            print(
-                f"\rEpisode {i+1}\tFinal Score: {np.mean(scores):.2f}", end=""
-            )
+            print(f"\rEpisode {i+1}\tFinal Score: {np.mean(scores):.2f}", end="")
         return scores
 
     def save_hyperparameters(self, file: str) -> None:

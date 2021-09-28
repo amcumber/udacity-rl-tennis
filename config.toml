@@ -1,6 +1,6 @@
 [environment]
-ENV_FILE = 'envs\Tennis_Windows_x86_64\Tennis.exe'
-# ENV_FILE = "/data/Tennis_Linux_NoVis/Tennis"
+# ENV_FILE = 'envs\Tennis_Windows_x86_64\Tennis.exe'
+ENV_FILE = "/data/Tennis_Linux_NoVis/Tennis"
 # ENV_TYPE = 'tennis'        # enum ('unity', 'gym') = choose which environment to run
 STATE_SIZE = 24            # State size for given environment
 ACTION_SIZE = 2            # Action size for given environment
@@ -23,8 +23,8 @@ N_AGENTS = 2
 LEARN_F = 1                # Learning Frequency within episodes
 GAMMA = 0.99               # discount factor
 TAU = 1e-3                 # soft update target parameter
-LR_ACTOR = 1e-4            # learning rate for the actor
-LR_CRITIC = 1e-4           # learning rate for the critic
+LR_ACTOR = 1e-3            # learning rate for the actor
+LR_CRITIC = 1e-3           # learning rate for the critic
 WEIGHT_DECAY = 1e-6        # (0.0001) L2 weight decay parameter
 ACTOR_HIDDEN = [128,64]    # Actor Hidden architecture s -> h1 -> ... -> hn -> a
 CRITIC_HIDDEN = [128,64]   # Critic s -> h1+a -> ... -> hn -> 1
