@@ -7,7 +7,7 @@ ACTION_SIZE = 2            # Action size for given environment
 UPPER_BOUND = 1.0          # upper bound of action space
 SOLVED = 0.5               # Score to be considered solved for given environment
 ROOT_NAME = 'tennis'       # root name for save files
-SEED = 123456              # random seed
+SEED = 42                  # random seed
 
 [trainer]
 N_EPISODES = 2500          # max number of episodes to run
