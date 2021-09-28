@@ -50,7 +50,7 @@ class TennisFactory(TrainerFactory):
 
         # # Memory
         BATCH_SIZE: int                = data['memory']['BATCH_SIZE']
-        BUFFER_SIZE: int               = data['memory']['BUFFER_SIZE']
+        BUFFER_SIZE: int               = int(data['memory']['BUFFER_SIZE'])
 
         # # Agent
         N_AGENTS: int                  = data['agent']['N_AGENTS']
