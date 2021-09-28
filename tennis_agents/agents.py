@@ -18,10 +18,6 @@ class Agent(ABC):
     def load(self, file):
         pass
 
-    @abstractmethod
-    def cleanup(self):
-        pass
-
 
 class MultiAgent(Agent):
     @abstractmethod

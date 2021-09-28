@@ -82,7 +82,7 @@ class TennisTrainer(Trainer):
         self.max_t = max_t
         self.n_workers = len(self.magent)
 
-    def _report_score(self, i, s_window, best_score, end="") -> None:
+    def _report_score(self, i, s_window, best_score, scores, end="") -> None:
         """
         Report the score
         Parameters
@@ -99,6 +99,7 @@ class TennisTrainer(Trainer):
         msg = (
             f"\rEp {i+1:d}"
             + f"\tBest (all): {best_score:.4f}"
+            + f"\tCurrent: {scores:.4f}"
             f"\tMean (window): {np.mean(s_window):.4f}"
         )
         # logger.info(msg)
@@ -129,13 +130,13 @@ class TennisTrainer(Trainer):
         scores_window = deque(maxlen=self.window_len)
         best_score = -np.inf
         for i_episode in range(self.n_episodes):
-            (scores, scores_window, indiv_score) = self._run_episode(scores, scores_window)
-            if indiv_score > best_score:
-                best_score = indiv_score
+            (scores, scores_window, indiv_scores) = self._run_episode(scores, scores_window)
+            if any(indiv_scores > best_score):
+                best_score = np.max(indiv_scores)
             self.scores_ = scores
-            self._report_score(i_episode, scores_window, best_score)
+            self._report_score(i_episode, scores_window, best_score, indiv_scores)
             if (i_episode + 1) % self.SAVE_EVERY == 0:
-                self._report_score( i_episode, scores_window, best_score, end="\n")
+                self._report_score( i_episode, scores_window, best_score, indiv_scores, end="\n")
                 self.magent.save(self.save_dir / f"{self.save_root}-agent-checkpoint")
                 self.save_scores( self.save_dir / f"{self.save_root}-scores-checkpoint.pkl")
             if self._check_solved(i_episode, scores_window):
@@ -149,7 +150,7 @@ class TennisTrainer(Trainer):
         """Run an episode of the training sequence"""
         states = self.env.reset()
         self.magent.reset()
-        score = np.zeros(len(self.magent))
+        indiv_scores = np.zeros(len(self.magent))
         for _ in range(self.max_t):
             if render:
                 self.env.render()
@@ -157,20 +158,20 @@ class TennisTrainer(Trainer):
             next_states, rewards, dones, _ = self.env.step(actions)
             self.magent.step(states, actions, rewards, next_states, dones)
             states = next_states
-            score += rewards
+            indiv_scores += rewards
             if np.any(dones):
                 break
-        score = np.max(score)  # Specific to Tennis!
-        scores_window.append(score)  # save most recent score
-        scores.append(score)  # save most recent score
-        idx = np.array(score).argmax()
+        best_score = np.max(indiv_scores)  # Specific to Tennis!
+        scores_window.append(best_score)  # save most recent score
+        scores.append(best_score)  # save most recent score
+        # idx = np.array(best_score).argmax()
         # best_agent = self.magent.agents[idx]
         # for i, agent in enumerate(self.magent.agents):
         #     if i == idx:
         #         pass
         #     agent.copy_from(best_agent)
         # self.magent.cleanup()
-        return (scores, scores_window, score)
+        return (scores, scores_window, indiv_scores)
 
     def eval(self, n_episodes=3, render=False):
         ## scores_window

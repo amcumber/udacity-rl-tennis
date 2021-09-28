@@ -46,7 +46,7 @@ class OUActionNoise(ActionNoise):
         seed: int,
         mu: float = 0.0,
         theta: float = 0.15,
-        sigma: float = 0.2,
+        sigma: float = 0.1,
     ):
         """Initialize parameters and noise process."""
         self.mu = mu * np.ones(action_size)
@@ -67,9 +67,6 @@ class OUActionNoise(ActionNoise):
         )
         self.state = x + dx
         return self.state
-
-    def __call__(self):
-        return self.sample()
 
 
 class OUActionNoiseV2(ActionNoise):

@@ -24,7 +24,6 @@ class DDPGActor(nn.Module):
         hidden_units: Tuple[int] = (128, 64),
         upper_bound: float = 1.0,
         act_func: callable = F.relu,
-        batch_norm: bool = False
     ):
         """Initialize parameters and build model.
         Parameters
@@ -52,7 +51,6 @@ class DDPGActor(nn.Module):
         """
         super().__init__()
         self.seed = torch.manual_seed(seed)
-        self.batch_norm = batch_norm
         self.upper_bound = upper_bound
         self.act_func = act_func
         self.n_layers = 3
@@ -61,10 +59,9 @@ class DDPGActor(nn.Module):
         self.fc2 = nn.Linear(hidden_units[0], hidden_units[1])
         self.fc3 = nn.Linear(hidden_units[1], action_size)
 
-        if batch_norm:
-            self.bn1 = nn.BatchNorm1d(state_size)
-            self.bn2 = nn.BatchNorm1d(hidden_units[0])
-            self.bn3 = nn.BatchNorm1d(hidden_units[1])
+        self.bn1 = nn.BatchNorm1d(state_size)
+        self.bn2 = nn.BatchNorm1d(hidden_units[0])
+        self.bn3 = nn.BatchNorm1d(hidden_units[1])
 
         self.reset_parameters()
 
@@ -80,20 +77,15 @@ class DDPGActor(nn.Module):
     def forward(self, state):
         """Build an actor (policy) network that maps states -> actions."""
         x = state
-        if self.batch_norm:
-            x = self.bn1(x)
-            x = self.fc1(x)
-            x = self.act_func(x)
-            x = self.bn2(x)
-            x = self.fc2(x)
-            x = self.act_func(x)
-            # x = self.bn3(x)
-            x = self.fc3(x)
-            x = torch.tanh(x)
-            return x
-        x = self.act_func(self.fc1(x))
-        x = self.act_func(self.fc2(x))
-        x = torch.tanh(self.fc3(x))
+        # x = self.bn1(x)  # NOTE: suspect this will help as 'on'
+        x = self.fc1(x)
+        x = self.act_func(x)
+        x = self.bn2(x)
+        x = self.fc2(x)
+        x = self.act_func(x)
+        # x = self.bn3(x)
+        x = self.fc3(x)
+        x = torch.tanh(x) * self.upper_bound
         return x
 
 
@@ -107,7 +99,6 @@ class DDPGCritic(nn.Module):
         seed: int,
         hidden_units: tuple = (128, 64),
         act_func: callable = F.leaky_relu,
-        batch_norm : bool = False,
     ):
         """Initialize parameters and build model.
         Params
@@ -130,7 +121,6 @@ class DDPGCritic(nn.Module):
         """
         super().__init__()
         self.seed = torch.manual_seed(seed)
-        self.batch_norm = batch_norm
         self.act_func = act_func
         self.n_layers = 3
 
@@ -138,10 +128,12 @@ class DDPGCritic(nn.Module):
         self.fc2 = nn.Linear(hidden_units[0] + action_size,
                              hidden_units[1])
         self.fc3 = nn.Linear(hidden_units[1], 1)
-        if batch_norm:
-            self.bn1 = nn.BatchNorm1d(state_size)
-            self.bn2 = nn.BatchNorm1d(hidden_units[0] + action_size)
-            self.bn3 = nn.BatchNorm1d(hidden_units[1])
+
+        self.bn1 = nn.BatchNorm1d(state_size)
+        self.bn2 = nn.BatchNorm1d(hidden_units[0] + action_size)
+        self.bn3 = nn.BatchNorm1d(hidden_units[1])
+
+        self.drop = nn.Dropout(p=0.2)
 
         self.reset_parameters()
 
@@ -160,7 +152,7 @@ class DDPGCritic(nn.Module):
         """
         x = state
         if self.batch_norm:
-            x = self.bn1(x)
+            # x = self.bn1(x)
             x = self.fc1(x)
             x = self.act_func(x)
             x = torch.cat((x, action), dim=1)
@@ -173,5 +165,6 @@ class DDPGCritic(nn.Module):
         x = self.act_func(self.fc1(x))
         x = torch.cat((x, action), dim=1)
         x = self.act_func(self.fc2(x))
+        x = self.drop(x)
         x = self.fc3(x)
         return x

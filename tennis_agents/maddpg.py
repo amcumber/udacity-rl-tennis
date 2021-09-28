@@ -41,5 +41,5 @@ class MADDPGAgent(MultiAgent):
     def reset(self):
         [agent.reset() for agent in self.agents]
 
-    def cleanup(self):
-        [agent.cleanup() for agent in self.agents]
+    # def cleanup(self):
+    #     [agent.cleanup() for agent in self.agents]

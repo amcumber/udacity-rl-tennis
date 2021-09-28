@@ -23,9 +23,9 @@ from .noise_models import ActionNoise, ParamNoise
 from .replay_buffers import ReplayBuffer
 
 
-class DDPGAgent(Agent):
+class DDPGAgentParamNoise(Agent):
     """
-    DDPG Multi agent implementation - Recieves memories from trainer
+    DDPG Agent with Parameter Noise - Recieves memories from trainer
     Interacts with and learns from the environment.
 
     CITATION: for all parameter noise additions see: 
@@ -55,6 +55,7 @@ class DDPGAgent(Agent):
         add_noise: bool = True,
         noise_decay: float = 0.99,
         action_noise: ActionNoise = None,
+        param_noise: ParamNoise = None,
     ):
         """Initialize a DDPG Agent object.
 
@@ -98,6 +99,8 @@ class DDPGAgent(Agent):
             Noise Model to use for normalizing the A/C Network
         noise_decay : float
             decay action noise by defined ammount
+        param_noise : ParamNoise (None)
+            Param Noise Model to use for normalizing the A/C Network
         """
 
         self.state_size = state_size
@@ -150,6 +153,18 @@ class DDPGAgent(Agent):
             self.actor_local.parameters(),
             lr=lr_actor,
         )
+        # Param Noise Actor
+        self.actor_purturbed = actor(
+            state_size,
+            action_size,
+            random_seed,
+            hidden_units=actor_hidden,
+            upper_bound=upper_bound,
+            act_func=actor_act,
+            batch_norm=batch_norm
+        ).to(device)
+        self.hard_update(self.actor_purturbed, self.actor_local)
+            
 
         # Critic Network (w/ Target Network)
         self.critic_local = critic(
@@ -186,15 +201,17 @@ class DDPGAgent(Agent):
 
     def act(self, state, add_noise=None): # noise_decay = 1.0):
         """Returns actions for given state as per current policy."""
-        if add_noise is None:
-            add_noise = self.add_noise
-        if self.action_noise is None:
-            add_noise = False
+        add_noise = self.add_noise
         state = torch.from_numpy(np.expand_dims(state, 0)).float().to(self.device)
         self.actor_local.eval()
+        self.actor_purturbed.eval()
         with torch.no_grad():
-            action = self.actor_local(state).cpu().data.numpy()
-        self.actor_local.train()
+            l_action = self.actor_local(state).cpu().data.numpy()
+            p_action = self.actor_purturbed(state).cpu().data.numpy()
+        self.stored_actions.append(l_action)
+        self.perturbed_actions.append(p_action)
+        action = p_action
+        self.actor_local.train() # Train actor regardless
         if add_noise:
             action += self.action_noise.sample() * self.noise_decay
         return np.clip(action, -self.upper_bound, self.upper_bound)
@@ -264,6 +281,21 @@ class DDPGAgent(Agent):
             self.soft_update(self.critic_local, self.critic_target)
             self.soft_update(self.actor_local, self.actor_target)
     
+    def perturb_actor_params(self):
+        """
+        Apply Parameter noise to actor model
+        To be used at the start of each episode
+        """
+        # CITATION: https://github.com/l5shi/Multi-DDPG-with-parameter-noise/blob/master/Multi_DDPG_with_parameter_noise.ipynb
+        self.hard_update(self.actor_purturbed, self.actor_local)
+        for name, param in self.actor_purturbed.state_dict().items():
+            if 'ln' in name:
+                pass
+            random = torch.randn(param.shape).long().to(self.device)
+            
+            param += (random * self.param_noise.current_std).long()
+
+
     def soft_update(self, local_model, target_model):
         """Soft update model parameters.
         θ_target = τ*θ_local + (1 - τ)*θ_target
@@ -279,6 +311,12 @@ class DDPGAgent(Agent):
             target_param.data.copy_(
                 (self.tau * local_param.data) + (1.0 - self.tau) * target_param.data
             )
+    @staticmethod
+    def hard_update(target, source):
+        """Hard Update model parameters"""
+        # CITATION: https://github.com/l5shi/Multi-DDPG-with-parameter-noise/blob/master/Multi_DDPG_with_parameter_noise.ipynb
+        for target_param, param in zip(target.parameters(), source.parameters()):
+            target_param.data.copy_(param.data)
 
     def save(self, root_filename: str = "checkpoint") -> None:
         """
@@ -327,3 +365,22 @@ class DDPGAgent(Agent):
             raise ValueError("File must be specified")
         with Path(file).open("w") as fh:
             toml.dump(self.__dict__, fh)
+
+    @staticmethod
+    def ddpg_distance_meteric(actions1, actions2):
+        """Calculate distance between two actions - used for parameter noise"""
+        # CITATION: https://github.com/l5shi/Multi-DDPG-with-parameter-noise/blob/master/Multi_DDPG_with_parameter_noise.ipynb
+        diff = actions1 - actions2
+        mean_diff = np.mean(np.square(diff), axis=0)
+        dist = np.sqrt(np.mean(mean_diff))
+        return dist
+
+    def cleanup(self):
+        if self.param_noise is None:
+            return None
+        p_actions = np.array(self.perturbed_actions)
+        actions = np.array(self.stored_actions)
+        dist = self.ddpg_distance_meteric(p_actions, actions)
+        self.param_noise.adapt(dist)
+        self.stored_actions = []
+        self.perturbed_actions = []

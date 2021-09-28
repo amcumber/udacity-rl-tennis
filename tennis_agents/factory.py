@@ -14,10 +14,8 @@ from .maddpg import MADDPGAgent
 from .trainers import TennisTrainer, Trainer
 from .unity_environments import UnityEnvMgr
 from .replay_buffers import ReplayBuffer
-from .noise_models import AdaptiveParameterNoise, OUActionNoise
+from .noise_models import OUActionNoise
 
-
-# logger = logging.getLogger("TennisTrainer")
 
 class TrainerFactory(ABC):
     @staticmethod
@@ -67,7 +65,6 @@ class TennisFactory(TrainerFactory):
         ACTOR_ACT: str                 = data['agent']['ACTOR_ACT']
         CRITIC_ACT: str                = data['agent']['CRITIC_ACT']
         ADD_NOISE: Tuple[bool, bool]   = data['agent']['ADD_NOISE']
-        BATCH_NORM: float              = data['agent']['BATCH_NORM']
         NOISE_DECAY: float             = data['agent']['NOISE_DECAY']
 
         # # Noise
@@ -75,19 +72,15 @@ class TennisFactory(TrainerFactory):
 
         action_noise = None
         param_noise = None
-        if NOISE_TYPE == 'OU' or NOISE_TYPE == 'BOTH':
+        if NOISE_TYPE == 'AP' or NOISE_TYPE == 'BOTH':
+            raise ValueError('AP not supported with this factory!')
+        if NOISE_TYPE == 'OU':
             action_noise_data = {
                 key.lower(): val for key, val in data['OU'].items()
             }
             action_noise_data['action_size'] = ACTION_SIZE
             action_noise_data['seed'] = SEED
             action_noise = OUActionNoise(**action_noise_data)
-        if NOISE_TYPE == 'AP' or NOISE_TYPE == 'BOTH':
-            param_noise_data = {
-                key.lower(): val for key, val in data['AP'].items()
-            }
-            param_noise = AdaptiveParameterNoise(**param_noise_data)
-
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
         memory = ReplayBuffer(
@@ -113,11 +106,9 @@ class TennisFactory(TrainerFactory):
             critic_hidden=CRITIC_HIDDEN,
             actor_act=cls.get_function(ACTOR_ACT),
             critic_act=cls.get_function(CRITIC_ACT),
-            batch_norm=BATCH_NORM,
             add_noise=ADD_NOISE[idx],
             action_noise=action_noise,
             noise_decay=NOISE_DECAY,
-            param_noise=param_noise,
         ) for idx in range(N_AGENTS)]
         return MADDPGAgent(agents)
 
