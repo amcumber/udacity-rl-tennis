@@ -82,7 +82,7 @@ class TennisTrainer(Trainer):
         self.max_t = max_t
         self.n_workers = len(self.magent)
 
-    def _report_score(self, i, s_window, best_score, scores, end="") -> None:
+    def _report_score(self, i, s_window, best_score, end="") -> None:
         """
         Report the score
         Parameters
@@ -99,7 +99,6 @@ class TennisTrainer(Trainer):
         msg = (
             f"\rEp {i+1:d}"
             + f"\tBest (all): {best_score:.4f}"
-            + f"\tCurrent: {scores:.4f}"
             f"\tMean (window): {np.mean(s_window):.4f}"
         )
         # logger.info(msg)
@@ -134,9 +133,9 @@ class TennisTrainer(Trainer):
             if any(indiv_scores > best_score):
                 best_score = np.max(indiv_scores)
             self.scores_ = scores
-            self._report_score(i_episode, scores_window, best_score, indiv_scores)
+            self._report_score(i_episode, scores_window, best_score)
             if (i_episode + 1) % self.SAVE_EVERY == 0:
-                self._report_score( i_episode, scores_window, best_score, indiv_scores, end="\n")
+                self._report_score( i_episode, scores_window, best_score, end="\n")
                 self.magent.save(self.save_dir / f"{self.save_root}-agent-checkpoint")
                 self.save_scores( self.save_dir / f"{self.save_root}-scores-checkpoint.pkl")
             if self._check_solved(i_episode, scores_window):

@@ -19,17 +19,14 @@ import torch.optim as optim
 
 from .agents import Agent
 from .ddpg_model import DDPGActor, DDPGCritic
-from .noise_models import ActionNoise, ParamNoise
+from .noise_models import ActionNoise
 from .replay_buffers import ReplayBuffer
 
 
 class DDPGAgent(Agent):
     """
-    DDPG Multi agent implementation - Recieves memories from trainer
+    DDPG Agent implementation - Recieves memories from trainer
     Interacts with and learns from the environment.
-
-    CITATION: for all parameter noise additions see: 
-    https://github.com/l5shi/Multi-DDPG-with-parameter-noise/blob/master/Multi_DDPG_with_parameter_noise.ipynb
     """
     def __init__(
         self,
@@ -51,7 +48,6 @@ class DDPGAgent(Agent):
         critic_hidden: Tuple[int] = (256, 128),
         critic_act: callable = F.leaky_relu,
         upper_bound: int = 1,
-        batch_norm: bool = True,
         add_noise: bool = True,
         noise_decay: float = 0.99,
         action_noise: ActionNoise = None,
@@ -112,17 +108,11 @@ class DDPGAgent(Agent):
         self.seed = random.seed(random_seed)
         self.device = torch.device(device)
         self.upper_bound = upper_bound
-        self.batch_norm = batch_norm
 
         # Noise process
         self.add_noise = add_noise
         self.action_noise = action_noise
         self.noise_decay = noise_decay
-
-        # Param Noise
-        self.param_noise = param_noise
-        self.perturbed_actions = []
-        self.stored_actions = []
 
         # init Step Counter
         self.i_step = 0
@@ -135,7 +125,6 @@ class DDPGAgent(Agent):
             hidden_units=actor_hidden,
             upper_bound=upper_bound,
             act_func=actor_act,
-            batch_norm=batch_norm
         ).to(device)
         self.actor_target = actor(
             state_size,
@@ -144,7 +133,6 @@ class DDPGAgent(Agent):
             hidden_units=actor_hidden,
             upper_bound=upper_bound,
             act_func=actor_act,
-            batch_norm=batch_norm
         ).to(device)
         self.actor_optimizer = optim.Adam(
             self.actor_local.parameters(),
@@ -158,7 +146,6 @@ class DDPGAgent(Agent):
             random_seed,
             hidden_units=critic_hidden,
             act_func=critic_act,
-            batch_norm=batch_norm
         ).to(device)
         self.critic_target = critic(
             state_size,
@@ -166,7 +153,6 @@ class DDPGAgent(Agent):
             random_seed,
             hidden_units=critic_hidden,
             act_func=critic_act,
-            batch_norm=batch_norm
         ).to(device)
         self.critic_optimizer = optim.Adam(
             self.critic_local.parameters(),
@@ -178,11 +164,7 @@ class DDPGAgent(Agent):
         if not self.add_noise:
             return None
 
-        if self.param_noise is not None:
-            self.perturb_actor_params()
-
-        if self.action_noise is not None:
-            self.action_noise.reset()
+        self.action_noise.reset()
 
     def act(self, state, add_noise=None): # noise_decay = 1.0):
         """Returns actions for given state as per current policy."""

@@ -111,8 +111,6 @@ class DDPGCritic(nn.Module):
             Random seed
         hidden_units : Tuple[int]
             Number of nodes in the first, second, and third hidden layers
-        batch_norm : bool
-            enable batch normalization between FC layers
 
         CITATION: the algorithm for implementing the learn_every // update_every
                   was derived from recommendations for the continuous control
@@ -151,20 +149,14 @@ class DDPGCritic(nn.Module):
         pairs -> Q-values.
         """
         x = state
-        if self.batch_norm:
-            # x = self.bn1(x)
-            x = self.fc1(x)
-            x = self.act_func(x)
-            x = torch.cat((x, action), dim=1)
-            x = self.bn2(x)
-            x = self.fc2(x)
-            x = self.act_func(x)
-            # x = self.bn3(x)
-            x = self.fc3(x)
-            return x
-        x = self.act_func(self.fc1(x))
+        # x = self.bn1(x)
+        x = self.fc1(x)
+        x = self.act_func(x)
         x = torch.cat((x, action), dim=1)
-        x = self.act_func(self.fc2(x))
+        x = self.bn2(x)
+        x = self.fc2(x)
+        x = self.act_func(x)
+        # x = self.bn3(x)
         x = self.drop(x)
         x = self.fc3(x)
         return x
